@@ -1,5 +1,6 @@
 .Navbar {
     text-align: center;
+    align-items: center;
 }
 
 .navbar {
@@ -8,6 +9,7 @@
     position: sticky;
     top: 0;
     z-index: 1000;
+    align-items: center;
 }
 
 .nav-links {

@@ -5,10 +5,19 @@ const ConatctPage = () => {
     return (
         <div className="Contact">
             <Navbar />
-            <h1>Contact Page </h1>
-            {/* <div className='logo'>
-                <img src="/atelier_logo_black.png" alt="Logo" />
-            </div> */}
+            <div className="contact-container">
+                <div className="contact-img">
+                    <img src="/contact_page_img.jpg" alt="Contact Page Image" />
+                </div>
+                <div className="contact-content">
+                    <img src="atelier_logo_black.png" alt="Atelier Logo" />
+                    <p>
+                        Let's create something extraordinary. <br />
+                        Get in touch with us at <br />
+                        <a href="mailto:payal.shah@atelier2901.com">payal.shah@atelier2901.com</a>
+                    </p>
+                </div>
+            </div>
         </div>
     )
 }

@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import ConatctPage from './pages/contact';
 import HomePage from './pages/Home';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const App = () => {
 
