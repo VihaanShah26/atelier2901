@@ -1,0 +1,27 @@
+.stationery-page {
+    padding: 20px;
+    text-align: center;
+    align-items: center;
+    margin: 3vh 5vw;
+  }
+
+  .stationery-container {
+    /* background-color: black; */
+    height: 100%;
+  }
+  
+  .page-title {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 20px;
+    color: #333;
+  }
+  
+  .stationery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3%;
+    justify-content: center;
+    align-items: center;
+  }

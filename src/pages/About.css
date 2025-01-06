@@ -32,9 +32,10 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    text-align: right;
-    margin-top: 70%;
-    margin-right: 10%;
+    text-align: justify;
+    margin-top: 40%;
+    margin-left: 20%;
+    width: 60%;
 }
 
 .about-content img {
