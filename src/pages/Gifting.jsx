@@ -5,14 +5,14 @@ import Card from "../components/Card";
 import Navbar from "../components/Navbar";
 import "./Gifting.css";
 
-const InvitationsPage = () => {
+const GiftingPage = () => {
     const [premiumStationeryItems, setPremiumStationeryItems] = useState([]);
     // const [essentialStationeryItems, setEssentialStationeryItems] = useState([]);
 
     useEffect(() => {
         const fetchStationery = async () => {
             try {
-                const stationeryCollection = collection(db, "invitations");
+                const stationeryCollection = collection(db, "gifting");
                 const snapshot = await getDocs(stationeryCollection);
                 const items = snapshot.docs.map((doc) => doc.data());
                 setPremiumStationeryItems(items);
@@ -44,7 +44,7 @@ const InvitationsPage = () => {
             <Navbar></Navbar>
             <div className="stationery-page">
                 <div className="stationery-title">
-                    Invitations
+                    Gifting
                 </div>
                 <div className="stationery-grid">
                     {premiumStationeryItems.map((item, index) => (
@@ -64,4 +64,4 @@ const InvitationsPage = () => {
     );
 };
 
-export default InvitationsPage;
+export default GiftingPage;
