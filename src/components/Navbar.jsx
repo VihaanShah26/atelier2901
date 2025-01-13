@@ -10,7 +10,7 @@ const NavbarComponent = () => {
   return (
     <Navbar bg="dark" variant="dark" expand="lg" className="sticky-top">
       <Container>
-        <Navbar.Brand href="/">Atelier 2901</Navbar.Brand>
+        <Navbar.Brand href="/"><img src="atelier_logo_white.png" alt="Logo" /></Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="ms-auto">

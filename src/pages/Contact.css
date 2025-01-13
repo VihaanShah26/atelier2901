@@ -1,42 +1,79 @@
 .Contact {
-    height: 100vh;
-    width: 100%;
+  height: 100vh;
+  width: 100%;
 }
 
 .contact-container {
-    display: grid;
-    justify-content: center;
-    grid-template-columns: 1fr 1fr;
-    align-items: center;
-    width: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
+  display: grid;
+  justify-content: center;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 .contact-img {
-    grid-column: 1;
-    height: 100%;
-    width: 100%;
-    background-color: black;
+  grid-column: 1;
+  height: 100%;
+  width: 100%;
+  background-color: black;
 }
 
 .contact-img img {
-    width: 100%;
-    height: 100vh;
-    object-fit: cover;
+  width: 100%;
+  height: 100vh;
+  object-fit: cover;
 }
 
 .contact-content {
-    grid-column: 2;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: right;
-    margin-top: 70%;
-    margin-right: 10%;
+  grid-column: 2;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: right;
+  margin-top: 70%;
+  margin-right: 10%;
 }
 
 .contact-content img {
-    width: 30%;
+  width: 30%;
 }
+  
+  /* Mobile styling */
+  @media (max-width: 768px) {
+    .contact-container {
+      display: flex; /* Use flexbox for mobile */
+      flex-direction: column; /* Stack elements vertically */
+      align-items: center;
+      text-align: center;
+      gap: 20px; /* Add some spacing between sections */
+    }
+  
+    .contact-img {
+      width: 100%;
+      height: auto; /* Adjust the height to not be more than 40% */
+    }
+  
+    .contact-img img {
+      width: 100%;
+      height: 50vh; /* Maintain aspect ratio */
+    }
+  
+    .contact-content {
+      margin: 5vh 0; /* Remove right margin */
+      text-align: center;
+      padding: 0 20px; /* Add some padding for better spacing */
+    }
+  
+    .contact-content img {
+      width: 50%; /* Adjust the size of the logo */
+      margin-bottom: 20px;
+    }
+  
+    .contact-content p {
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+  }

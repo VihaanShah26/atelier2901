@@ -1,6 +1,5 @@
 .logo img {
     width: 24vw;
-    /* height: 60vh; */
     object-fit: contain;
     position: absolute;
     top: 30%;
@@ -17,4 +16,10 @@
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+  }
+
+  @media (max-width: 768px) {
+    .logo img {
+      width: 50%;
+    }
   }

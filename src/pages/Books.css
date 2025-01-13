@@ -1,16 +1,16 @@
-.stationery-page {
+.books-page {
     padding: 20px;
     text-align: center;
     align-items: center;
     margin: 0vh 5vw;
   }
 
-  .stationery-container {
+  .books-container {
     /* background-color: black; */
     height: 100%;
   }
   
-  .stationery-title {
+  .books-title {
     font-family: Futura;
     font-size: 1.5rem;
     /* font-weight: bold; */
@@ -18,7 +18,7 @@
     color: #333;
   }
   
-  .stationery-grid {
+  .books-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     grid-template-columns: repeat(4, 1fr);
