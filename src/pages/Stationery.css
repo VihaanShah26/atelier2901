@@ -12,7 +12,8 @@
   .stationery-title {
     font-family: Futura;
     font-size: 1.5rem;
-    margin: 20px 0px;
+    margin-top: 20px;
+    margin-bottom: 40px;
     color: #333;
   }
   
@@ -23,12 +24,16 @@
     gap: 3%;
     justify-content: center;
     align-items: center;
+    margin-bottom: 40px;
   }
   
   /* Medium screens (tablets): 2-3 cards per row */
   @media (max-width: 1024px) {
     .stationery-grid {
       grid-template-columns: repeat(2, 1fr); /* 2 cards per row */
+    }
+    .stationery-title {
+      font-size: 1.3rem;
     }
   }
   
