@@ -6,7 +6,7 @@ const HomePage = () => {
         <div className='Home'>
             <Navbar />
             <div className='logo'>
-                <img src="/atelier_logo_black.png" alt="Logo" />
+                {/* <img src="/atelier_logo_black.png" alt="Logo" /> */}
             </div>
         </div>
     )
