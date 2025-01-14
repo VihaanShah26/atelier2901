@@ -8,6 +8,7 @@ import "./Stationery.css";
 const StationeryPage = () => {
     const [premiumStationeryItems, setPremiumStationeryItems] = useState([]);
     const [essentialStationeryItems, setEssentialStationeryItems] = useState([]);
+    const [moneyStationeryItems, setMoneyStationeryItems] = useState([]);
 
     useEffect(() => {
         const fetchStationery = async () => {
@@ -39,6 +40,21 @@ const StationeryPage = () => {
         fetchStationery();
     }, []);
 
+    useEffect(() => {
+        const fetchStationery = async () => {
+            try {
+                const stationeryCollection = collection(db, "stationery_money");
+                const snapshot = await getDocs(stationeryCollection);
+                const items = snapshot.docs.map((doc) => doc.data());
+                setMoneyStationeryItems(items);
+            } catch (error) {
+                console.error("Error fetching essential stationery items:", error);
+            }
+        };
+
+        fetchStationery();
+    }, []);
+
     return (
         <div className="stationery-container">
             <Navbar></Navbar>
@@ -56,6 +72,14 @@ const StationeryPage = () => {
                 </div>
                 <div className="stationery-grid">
                     {essentialStationeryItems.map((item, index) => (
+                        <Card key={index} name={item.name} image={item.img} />
+                    ))}
+                </div>
+                <div className="stationery-title">
+                    Money Envelopes
+                </div>
+                <div className="stationery-grid">
+                    {moneyStationeryItems.map((item, index) => (
                         <Card key={index} name={item.name} image={item.img} />
                     ))}
                 </div>

@@ -6,16 +6,18 @@ import Navbar from "../components/Navbar";
 import "./Gifting.css";
 
 const GiftingPage = () => {
-    const [premiumStationeryItems, setPremiumStationeryItems] = useState([]);
+    const [coasters, setCoasters] = useState([]);
+    const [wine, setWine] = useState([]);
+    const [travel, setTravel] = useState([]);
     // const [essentialStationeryItems, setEssentialStationeryItems] = useState([]);
 
     useEffect(() => {
         const fetchStationery = async () => {
             try {
-                const stationeryCollection = collection(db, "gifting");
+                const stationeryCollection = collection(db, "gifting_coasters");
                 const snapshot = await getDocs(stationeryCollection);
                 const items = snapshot.docs.map((doc) => doc.data());
-                setPremiumStationeryItems(items);
+                setCoasters(items);
             } catch (error) {
                 console.error("Error fetching premium stationery items:", error);
             }
@@ -24,41 +26,64 @@ const GiftingPage = () => {
         fetchStationery();
     }, []);
 
-    // useEffect(() => {
-    //     const fetchStationery = async () => {
-    //         try {
-    //             const stationeryCollection = collection(db, "stationery_essential");
-    //             const snapshot = await getDocs(stationeryCollection);
-    //             const items = snapshot.docs.map((doc) => doc.data());
-    //             setEssentialStationeryItems(items);
-    //         } catch (error) {
-    //             console.error("Error fetching essential stationery items:", error);
-    //         }
-    //     };
+    useEffect(() => {
+        const fetchStationery = async () => {
+            try {
+                const stationeryCollection = collection(db, "gifting_wine");
+                const snapshot = await getDocs(stationeryCollection);
+                const items = snapshot.docs.map((doc) => doc.data());
+                setWine(items);
+            } catch (error) {
+                console.error("Error fetching essential stationery items:", error);
+            }
+        };
 
-    //     fetchStationery();
-    // }, []);
+        fetchStationery();
+    }, []);
+
+    useEffect(() => {
+        const fetchStationery = async () => {
+            try {
+                const stationeryCollection = collection(db, "gifting_travel");
+                const snapshot = await getDocs(stationeryCollection);
+                const items = snapshot.docs.map((doc) => doc.data());
+                setTravel(items);
+            } catch (error) {
+                console.error("Error fetching essential stationery items:", error);
+            }
+        };
+
+        fetchStationery();
+    }, []);
 
     return (
         <div className="stationery-container">
             <Navbar></Navbar>
             <div className="stationery-page">
                 <div className="stationery-title">
-                    Gifting
+                    Coasters
                 </div>
                 <div className="stationery-grid">
-                    {premiumStationeryItems.map((item, index) => (
+                    {coasters.map((item, index) => (
                         <Card key={index} name={item.name} image={item.img} />
                     ))}
                 </div>
-                {/* <div className="stationery-title">
-                    Essential Cards and Envelopes
+                <div className="stationery-title">
+                    Wine Bags
                 </div>
                 <div className="stationery-grid">
-                    {essentialStationeryItems.map((item, index) => (
+                    {wine.map((item, index) => (
                         <Card key={index} name={item.name} image={item.img} />
                     ))}
-                </div> */}
+                </div>
+                <div className="stationery-title">
+                    Travel Accessories
+                </div>
+                <div className="stationery-grid">
+                    {travel.map((item, index) => (
+                        <Card key={index} name={item.name} image={item.img} />
+                    ))}
+                </div>
             </div>
         </div>
     );
