@@ -6,16 +6,15 @@ import Navbar from "../components/Navbar";
 import "./Gifting.css";
 
 const BooksPage = () => {
-    const [premiumStationeryItems, setPremiumStationeryItems] = useState([]);
-    // const [essentialStationeryItems, setEssentialStationeryItems] = useState([]);
+    const [coffeeTableBooks, setCoffeeTableBooks] = useState([]);
 
     useEffect(() => {
         const fetchStationery = async () => {
             try {
-                const stationeryCollection = collection(db, "books");
+                const stationeryCollection = collection(db, "coffeetablebooks");
                 const snapshot = await getDocs(stationeryCollection);
                 const items = snapshot.docs.map((doc) => doc.data());
-                setPremiumStationeryItems(items);
+                setCoffeeTableBooks(items);
             } catch (error) {
                 console.error("Error fetching premium stationery items:", error);
             }
@@ -23,21 +22,6 @@ const BooksPage = () => {
 
         fetchStationery();
     }, []);
-
-    // useEffect(() => {
-    //     const fetchStationery = async () => {
-    //         try {
-    //             const stationeryCollection = collection(db, "stationery_essential");
-    //             const snapshot = await getDocs(stationeryCollection);
-    //             const items = snapshot.docs.map((doc) => doc.data());
-    //             setEssentialStationeryItems(items);
-    //         } catch (error) {
-    //             console.error("Error fetching essential stationery items:", error);
-    //         }
-    //     };
-
-    //     fetchStationery();
-    // }, []);
 
     return (
         <div className="stationery-container">
@@ -47,18 +31,10 @@ const BooksPage = () => {
                     Coffee Table Books
                 </div>
                 <div className="stationery-grid">
-                    {premiumStationeryItems.map((item, index) => (
+                    {coffeeTableBooks.map((item, index) => (
                         <Card key={index} name={item.name} image={item.img} />
                     ))}
                 </div>
-                {/* <div className="stationery-title">
-                    Essential Cards and Envelopes
-                </div>
-                <div className="stationery-grid">
-                    {essentialStationeryItems.map((item, index) => (
-                        <Card key={index} name={item.name} image={item.img} />
-                    ))}
-                </div> */}
             </div>
         </div>
     );
