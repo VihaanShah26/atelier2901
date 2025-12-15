@@ -30,7 +30,7 @@ export default function AtelierContact() {
 
   return (
     <PageLayout>
-      <section className="max-w-3xl min-h-[100vh] mx-auto px-6 lg:px-12 py-6 lg:py-12">
+      <section className="max-w-3xl min-h-[100vh] mx-auto px-6 lg:px-12 py-16 lg:py-16">
         <div className="mb-8 lg:mb-8">
           <h1 className="font-sans md:text-2xl lg:text-3xl animate-fade-in opacity-0" style={{ animationDelay: '100ms' }}>
             Contact Us 

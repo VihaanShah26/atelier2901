@@ -85,7 +85,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
 
           {/* Details */}
           <div className="p-8 flex flex-col justify-center">
-            <h2 className="font-serif text-2xl lg:text-3xl mb-8">
+            <h2 className="font-sans text-2xl lg:text-3xl mb-8">
               {displayName}
             </h2>
 

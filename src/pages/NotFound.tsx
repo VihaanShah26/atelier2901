@@ -8,7 +8,7 @@ const NotFound = () => {
         <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4 font-light">
           404
         </p>
-        <h1 className="font-serif text-3xl md:text-4xl lg:text-5xl mb-6">
+        <h1 className="font-sans text-3xl md:text-4xl lg:text-5xl mb-6">
           Page not found
         </h1>
         <Link 

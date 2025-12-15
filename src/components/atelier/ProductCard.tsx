@@ -21,7 +21,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
           loading="lazy"
         />
       </div>
-      <p className="font-serif text-lg text-center text-foreground/80 group-hover:text-foreground transition-colors">
+      <p className="font-sans text-lg text-center text-foreground/80 group-hover:text-foreground transition-colors">
         {displayName}
       </p>
     </div>

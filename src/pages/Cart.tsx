@@ -21,7 +21,7 @@ export default function Cart() {
             <div className="w-16 h-16 mx-auto mb-8 border border-accent flex items-center justify-center">
               <Check className="w-8 h-8 text-accent" strokeWidth={1.5} />
             </div>
-            <h1 className="font-serif text-3xl md:text-4xl mb-4">
+            <h1 className="font-sans text-3xl md:text-4xl mb-4">
               Thank you
             </h1>
             <p className="text-muted-foreground font-light mb-8">
@@ -45,7 +45,7 @@ export default function Cart() {
       <PageLayout>
         <section className="max-w-3xl mx-auto px-6 lg:px-12 py-16 lg:py-24 text-center">
           <div className="animate-fade-in opacity-0">
-            <h1 className="font-serif text-3xl md:text-4xl mb-4">
+            <h1 className="font-sans text-3xl md:text-4xl mb-4">
               Your cart is currently empty.
             </h1>
             <Link 
@@ -132,7 +132,7 @@ export default function Cart() {
             <span className="text-xs uppercase tracking-widest text-muted-foreground font-light">
               Subtotal
             </span>
-            <span className="font-serif text-lg">
+            <span className="font-sans text-lg">
               Price on request
             </span>
           </div>
