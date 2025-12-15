@@ -15,7 +15,7 @@ export default function CategoryTile({ title, path, delay = 0 }: CategoryTilePro
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="flex items-center justify-between">
-        <h3 className="font-serif text-xl lg:text-2xl text-foreground/80 group-hover:text-foreground transition-colors">
+        <h3 className="font-sans text-xl lg:text-2l text-foreground/80 group-hover:text-foreground transition-colors">
           {title}
         </h3>
         <ArrowRight 

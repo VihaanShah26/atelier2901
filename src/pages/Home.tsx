@@ -17,12 +17,13 @@ export default function Home() {
       {/* Hero Section */}
       <section className="min-h-[87vh] flex flex-col items-center justify-center px-6 lg:px-12 py-20">
         <div className="max-w-3xl text-center">
-          <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl leading-tight mb-6 animate-fade-in opacity-0">
-            Bespoke design, curated with restraint.
-          </h1>
-          <p className="text-muted-foreground font-light text-lg lg:text-xl max-w-xl mx-auto animate-fade-in opacity-0" style={{ animationDelay: '150ms' }}>
+          <h1 className="font-sans text-4xl md:text-5xl lg:text-2xl leading-tight mb-6 animate-fade-in opacity-0">
+            {/* Bespoke design, curated with restraint. */}
             Exquisite creations that epitomize individuality and sophistication.
-          </p>
+          </h1>
+          {/* <p className="text-muted-foreground font-light text-lg lg:text-xl max-w-xl mx-auto animate-fade-in opacity-0" style={{ animationDelay: '150ms' }}>
+            Exquisite creations that epitomize individuality and sophistication.
+          </p> */}
         </div>
       </section>
 

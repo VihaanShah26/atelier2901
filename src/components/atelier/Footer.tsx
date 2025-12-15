@@ -15,13 +15,13 @@ export default function Footer() {
               <span className="font-light">payal.shah@atelier2901.com</span>
             </a>
             <a 
-              href="https://instagram.com/atelier2901"
+              href="https://instagram.com/atelier_2901"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <Instagram className="w-4 h-4" strokeWidth={1.5} />
-              <span className="font-light">atelier2901</span>
+              <span className="font-light">atelier_2901</span>
             </a>
           </div>
 
