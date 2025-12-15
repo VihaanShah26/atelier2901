@@ -68,7 +68,7 @@ export default function Cart() {
           <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4 font-light animate-fade-in opacity-0">
             Your Selection
           </p>
-          <h1 className="font-serif text-3xl md:text-4xl lg:text-5xl animate-fade-in opacity-0" style={{ animationDelay: '100ms' }}>
+          <h1 className="font-sans text-3xl md:text-4xl lg:text-3xl animate-fade-in opacity-0" style={{ animationDelay: '100ms' }}>
             Cart ({totalItems})
           </h1>
         </div>
@@ -92,7 +92,7 @@ export default function Cart() {
 
               {/* Details */}
               <div className="flex-1 min-w-0">
-                <h3 className="font-serif text-lg truncate">{item.name}</h3>
+                <h3 className="font-sans text-2l truncate">{item.name}</h3>
               </div>
 
               {/* Quantity */}
@@ -141,7 +141,7 @@ export default function Cart() {
             onClick={handlePlaceOrder}
             className="w-full py-4 bg-foreground text-background text-xs uppercase tracking-widest font-light hover:bg-foreground/90 transition-colors"
           >
-            Place Order
+            Place Request
           </button>
           
           <p className="text-center text-xs text-muted-foreground mt-4 font-light">
