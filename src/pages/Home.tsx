@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import PageLayout from '@/components/atelier/PageLayout';
 import CategoryTile from '@/components/atelier/CategoryTile';
-import logoBlack from '@/assets/logo-black.png';
+import TextType from '@/components/atelier/TextType';
 
 const categories = [
   { title: 'Bespoke Stationery', path: '/stationery' },
@@ -15,11 +15,18 @@ export default function Home() {
   return (
     <PageLayout>
       {/* Hero Section */}
-      <section className="min-h-[87vh] flex flex-col items-center justify-center px-6 lg:px-12 py-20">
+      <section className="min-h-[100vh] flex flex-col items-center justify-center px-6 lg:px-12 py-20" style={{background : 'rgba(184, 206, 28,0.9)'}}>
         <div className="max-w-3xl text-center">
           <h1 className="font-sans text-4xl md:text-5xl lg:text-2xl leading-tight mb-6 animate-fade-in opacity-0">
             {/* Bespoke design, curated with restraint. */}
-            Exquisite creations that epitomize individuality and sophistication.
+            <TextType 
+              text={["Luxury stationery. Elevated gifting. Designed for you.", "Bespoke design, thoughtfully crafted.", "Tailored designs for life's most meaningful moments.","Where craftsmanship, creativity, and personalization converge.", "Quiet luxury, designed with purpose.", ]}
+              typingSpeed={65}
+              pauseDuration={1700}
+              deletingSpeed={30}
+              showCursor={true}
+              cursorCharacter="|"
+            />
           </h1>
           {/* <p className="text-muted-foreground font-light text-lg lg:text-xl max-w-xl mx-auto animate-fade-in opacity-0" style={{ animationDelay: '150ms' }}>
             Exquisite creations that epitomize individuality and sophistication.
