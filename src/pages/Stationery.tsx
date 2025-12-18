@@ -8,17 +8,17 @@ const STATIONERY_CATEGORIES = {
   essential: {
     label: 'Essential Stationery',
     collection: 'stationery_essential',
-    description: 'Everyday essentials designed by Atelier.',
+    description: 'Minimal. Personal. Refined.',
   },
   premium: {
     label: 'Premium Stationery',
     collection: 'stationery_premium',
-    description: 'Luxurious finishes and bespoke detailing.',
+    description: 'Luxure in every detail.',
   },
   envelopes: {
-    label: 'Envelopes & Money Holders',
+    label: 'Envelopes',
     collection: 'stationery_money',
-    description: 'Elegant accompaniments for gifting and correspondence.',
+    description: 'Elegant details that elevate gifting.',
   },
 } as const;
 
