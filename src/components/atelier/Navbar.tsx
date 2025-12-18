@@ -3,9 +3,23 @@ import { ShoppingBag, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import logoBlack from '@/assets/logo-black.png';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const navLinks = [
-  { name: 'Stationery', path: '/stationery' },
+  {
+    name: 'Stationery',
+    path: '/stationery',
+    submenu: [
+      { name: 'Essential', query: 'essential' },
+      { name: 'Premium', query: 'premium' },
+      { name: 'Envelopes', query: 'envelopes' },
+    ],
+  },
   { name: 'Gifting', path: '/gifting' },
   { name: 'Coffee Table Books', path: '/coffee-table-books' },
   { name: 'Invitations', path: '/invitations' },
@@ -33,19 +47,51 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className={`text-xs tracking-wider uppercase font-sans font-light transition-colors duration-200 ${
-                  location.pathname === link.path
-                    ? 'text-foreground border-b border-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {link.name}
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              const isActive = location.pathname === link.path;
+
+              if (link.submenu) {
+                return (
+                  <DropdownMenu key={link.name}>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className={`text-xs tracking-wider uppercase font-sans font-light transition-colors duration-200 flex items-center gap-1 ${
+                          isActive
+                            ? 'text-foreground border-b border-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {link.name}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-48">
+                      {link.submenu.map((item) => (
+                        <DropdownMenuItem asChild key={item.query}>
+                          <Link to={`${link.path}?collection=${item.query}`} className="w-full">
+                            {item.name}
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              }
+
+              return (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className={`text-xs tracking-wider uppercase font-sans font-light transition-colors duration-200 ${
+                    isActive
+                      ? 'text-foreground border-b border-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {link.name}
+                </Link>
+              );
+            })}
             
             {/* Cart */}
             <Link 
@@ -89,18 +135,33 @@ export default function Navbar() {
         <div className="lg:hidden bg-background border-b border-border">
           <div className="px-6 py-6 space-y-4">
             {navLinks.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`block text-sm tracking-wider uppercase font-sans font-light transition-colors ${
-                  location.pathname === link.path
-                    ? 'text-foreground'
-                    : 'text-muted-foreground'
-                }`}
-              >
-                {link.name}
-              </Link>
+              <div key={link.name}>
+                <Link
+                  to={link.path}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`block text-sm tracking-wider uppercase font-sans font-light transition-colors ${
+                    location.pathname === link.path
+                      ? 'text-foreground'
+                      : 'text-muted-foreground'
+                  }`}
+                >
+                  {link.name}
+                </Link>
+                {link.submenu && (
+                  <div className="mt-2 space-y-2 pl-4">
+                    {link.submenu.map((item) => (
+                      <Link
+                        key={item.query}
+                        to={`${link.path}?collection=${item.query}`}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                      >
+                        {item.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </div>
