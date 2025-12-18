@@ -26,7 +26,7 @@ export default function Home() {
 
     const intervalId = window.setInterval(() => {
       setCurrentImageIndex((prev) => (prev + 1) % heroImages.length);
-    }, 4000);
+    }, 5000);
 
     return () => window.clearInterval(intervalId);
   }, []);
@@ -34,40 +34,38 @@ export default function Home() {
   return (
     <PageLayout>
       {/* Hero Section */}
-      <section
-        className="min-h-[100vh] flex flex-col-reverse md:flex-row md:items-center gap-10 px-6 lg:px-12 py-20"
-        style={{ background: 'rgba(184, 206, 28, 0.9)' }}
-      >
-        <div className="w-full md:w-1/2">
-          <h1 className="font-sans text-xl sm:text-2xl md:text-4xl lg:text-4xl leading-tight mb-6 animate-fade-in opacity-0 text-left">
-            <TextType
-              text={[
-                'Luxury stationery. Elevated gifting. Designed for you.',
-                'Bespoke design, thoughtfully crafted.',
-                "Tailored designs for life's most meaningful moments.",
-                'Where craftsmanship, creativity, and personalization converge.',
-                'Quiet luxury, designed with purpose.',
-              ]}
-              typingSpeed={65}
-              pauseDuration={1700}
-              deletingSpeed={30}
-              showCursor
-              cursorCharacter="_"
+      <section className="relative px-6 lg:px-12 py-10 overflow-hidden">
+        <div className="absolute inset-0">
+          {heroImages.map((image, index) => (
+            <div
+              key={image}
+              className={`absolute inset-0 bg-cover bg-center transition-opacity duration-700 ${
+                index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+              }`}
+              style={{ backgroundImage: `url(${image})` }}
+              aria-hidden="true"
             />
-          </h1>
+          ))}
+          <div className="absolute inset-0 bg-black/45" aria-hidden="true" />
         </div>
-        <div className="w-full md:w-1/2">
-          <div className="relative w-full h-80 sm:h-96 md:h-[520px] overflow-hidden rounded-2xl shadow-2xl">
-            {heroImages.map((image, index) => (
-              <div
-                key={image}
-                className={`absolute inset-0 bg-cover bg-center transition-opacity duration-700 ${
-                  index === currentImageIndex ? 'opacity-100' : 'opacity-0'
-                }`}
-                style={{ backgroundImage: `url(${image})` }}
-                aria-hidden="true"
+        <div className="relative mx-auto flex w-full max-w-6xl min-h-[calc(100vh-64px)] lg:min-h-[calc(100vh-80px)] items-center justify-center md:justify-end">
+          <div className="max-w-2xl text-center md:text-right text-white">
+            <h1 className="font-sans text-xl sm:text-2xl md:text-4xl lg:text-5xl leading-tight animate-fade-in opacity-0">
+              <TextType
+                text={[
+                  'Luxury stationery. Elevated gifting. Designed for you.',
+                  'Bespoke design, thoughtfully crafted.',
+                  "Tailored designs for life's most meaningful moments.",
+                  'Where craftsmanship, creativity, and personalization converge.',
+                  'Quiet luxury, designed with purpose.',
+                ]}
+                typingSpeed={65}
+                pauseDuration={1700}
+                deletingSpeed={30}
+                showCursor
+                cursorCharacter="|"
               />
-            ))}
+            </h1>
           </div>
         </div>
       </section>
