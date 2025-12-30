@@ -78,7 +78,7 @@ export default function Cart() {
           {items.map((item, index) => (
             <div 
               key={`${item.id}-${item.personalize}`}
-              className="flex items-center gap-6 py-6 border-b border-border animate-fade-in opacity-0"
+              className="flex flex-col items-start gap-4 py-6 border-b border-border animate-fade-in opacity-0 md:flex-row md:items-center md:gap-6"
               style={{ animationDelay: `${(index + 1) * 100}ms` }}
             >
               {/* Thumbnail */}
@@ -91,7 +91,7 @@ export default function Cart() {
               </div>
 
               {/* Details */}
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 w-full">
                 <h3 className="font-sans text-2l truncate">{item.name}</h3>
                 <p className="text-xs uppercase tracking-widest text-muted-foreground font-light mt-2">
                   Personalized: {item.personalize === 'yes' ? 'Yes' : 'No'}
@@ -120,7 +120,7 @@ export default function Cart() {
               {/* Remove */}
               <button
                 onClick={() => removeFromCart(item.id, item.personalize)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="text-muted-foreground hover:text-foreground transition-colors self-end order-first md:order-none md:self-auto"
                 aria-label="Remove item"
               >
                 <X className="w-5 h-5" strokeWidth={1.5} />
