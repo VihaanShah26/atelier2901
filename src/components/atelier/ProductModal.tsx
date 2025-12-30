@@ -11,10 +11,12 @@ interface ProductModalProps {
 
 export default function ProductModal({ product, onClose }: ProductModalProps) {
   const [quantity, setQuantity] = useState(1);
+  const [personalize, setPersonalize] = useState<'yes' | 'no'>('no');
   const { addToCart } = useCart();
   const { toast } = useToast();
   const modalRef = useRef<HTMLDivElement>(null);
   const displayName = product.name || 'ATELIER 2901';
+  const isCoffeeTableBook = product.category === 'coffeetablebooks';
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -40,11 +42,13 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
   };
 
   const handleAddToCart = () => {
+    if (isCoffeeTableBook) return;
     addToCart({
       id: product.id,
       name: displayName,
       img: product.img,
       category: product.category,
+      personalize,
     }, quantity);
     
     toast({
@@ -89,37 +93,76 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
               {displayName}
             </h2>
 
-            {/* Quantity Selector */}
-            <div className="mb-8">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-light">
-                Quantity
+            {isCoffeeTableBook ? (
+              <p className="text-sm text-muted-foreground font-light">
+                Reach out to us at payal.shah@atelier2901.com to inquire about coffee table books
               </p>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-10 h-10 border border-border flex items-center justify-center hover:border-foreground transition-colors"
-                  aria-label="Decrease quantity"
-                >
-                  <Minus className="w-4 h-4" strokeWidth={1.5} />
-                </button>
-                <span className="w-12 text-center font-light">{quantity}</span>
-                <button
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="w-10 h-10 border border-border flex items-center justify-center hover:border-foreground transition-colors"
-                  aria-label="Increase quantity"
-                >
-                  <Plus className="w-4 h-4" strokeWidth={1.5} />
-                </button>
-              </div>
-            </div>
+            ) : (
+              <>
+                {/* Quantity Selector */}
+                <div className="mb-8">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-light">
+                    Quantity
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      className="w-10 h-10 border border-border flex items-center justify-center hover:border-foreground transition-colors"
+                      aria-label="Decrease quantity"
+                    >
+                      <Minus className="w-4 h-4" strokeWidth={1.5} />
+                    </button>
+                    <span className="w-12 text-center font-light">{quantity}</span>
+                    <button
+                      onClick={() => setQuantity(quantity + 1)}
+                      className="w-10 h-10 border border-border flex items-center justify-center hover:border-foreground transition-colors"
+                      aria-label="Increase quantity"
+                    >
+                      <Plus className="w-4 h-4" strokeWidth={1.5} />
+                    </button>
+                  </div>
+                </div>
 
-            {/* Add to Cart Button */}
-            <button
-              onClick={handleAddToCart}
-              className="w-full py-4 bg-foreground text-background text-xs uppercase tracking-widest font-light hover:bg-foreground/90 transition-colors"
-            >
-              Add to cart
-            </button>
+                {/* Personalization */}
+                <div className="mb-8">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-light">
+                    Do you wish to personalize this?
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 text-sm font-light text-foreground/80">
+                      <input
+                        type="radio"
+                        name="personalize"
+                        value="yes"
+                        checked={personalize === 'yes'}
+                        onChange={() => setPersonalize('yes')}
+                        className="h-4 w-4 accent-foreground"
+                      />
+                      Yes
+                    </label>
+                    <label className="flex items-center gap-2 text-sm font-light text-foreground/80">
+                      <input
+                        type="radio"
+                        name="personalize"
+                        value="no"
+                        checked={personalize === 'no'}
+                        onChange={() => setPersonalize('no')}
+                        className="h-4 w-4 accent-foreground"
+                      />
+                      No
+                    </label>
+                  </div>
+                </div>
+
+                {/* Add to Cart Button */}
+                <button
+                  onClick={handleAddToCart}
+                  className="w-full py-4 bg-foreground text-background text-xs uppercase tracking-widest font-light hover:bg-foreground/90 transition-colors"
+                >
+                  Add to cart
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

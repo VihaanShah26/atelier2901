@@ -77,7 +77,7 @@ export default function Cart() {
         <div className="space-y-0 mb-12">
           {items.map((item, index) => (
             <div 
-              key={item.id}
+              key={`${item.id}-${item.personalize}`}
               className="flex items-center gap-6 py-6 border-b border-border animate-fade-in opacity-0"
               style={{ animationDelay: `${(index + 1) * 100}ms` }}
             >
@@ -93,12 +93,15 @@ export default function Cart() {
               {/* Details */}
               <div className="flex-1 min-w-0">
                 <h3 className="font-sans text-2l truncate">{item.name}</h3>
+                <p className="text-xs uppercase tracking-widest text-muted-foreground font-light mt-2">
+                  Personalized: {item.personalize === 'yes' ? 'Yes' : 'No'}
+                </p>
               </div>
 
               {/* Quantity */}
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                  onClick={() => updateQuantity(item.id, item.personalize, item.quantity - 1)}
                   className="w-8 h-8 border border-border flex items-center justify-center hover:border-foreground transition-colors"
                   aria-label="Decrease quantity"
                 >
@@ -106,7 +109,7 @@ export default function Cart() {
                 </button>
                 <span className="w-8 text-center font-light text-sm">{item.quantity}</span>
                 <button
-                  onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                  onClick={() => updateQuantity(item.id, item.personalize, item.quantity + 1)}
                   className="w-8 h-8 border border-border flex items-center justify-center hover:border-foreground transition-colors"
                   aria-label="Increase quantity"
                 >
@@ -116,7 +119,7 @@ export default function Cart() {
 
               {/* Remove */}
               <button
-                onClick={() => removeFromCart(item.id)}
+                onClick={() => removeFromCart(item.id, item.personalize)}
                 className="text-muted-foreground hover:text-foreground transition-colors"
                 aria-label="Remove item"
               >

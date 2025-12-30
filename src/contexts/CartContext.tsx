@@ -1,18 +1,21 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
+export type PersonalizeChoice = 'yes' | 'no';
+
 export interface CartItem {
   id: string;
   name: string;
   img: string;
   category: string;
   quantity: number;
+  personalize: PersonalizeChoice;
 }
 
 interface CartContextType {
   items: CartItem[];
   addToCart: (item: Omit<CartItem, 'quantity'>, quantity: number) => void;
-  removeFromCart: (id: string) => void;
-  updateQuantity: (id: string, quantity: number) => void;
+  removeFromCart: (id: string, personalize: PersonalizeChoice) => void;
+  updateQuantity: (id: string, personalize: PersonalizeChoice, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
 }
@@ -25,7 +28,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(CART_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map((item) => ({
+        ...item,
+        personalize: item.personalize === 'yes' ? 'yes' : 'no',
+      })) as CartItem[];
     }
     return [];
   });
@@ -36,10 +45,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addToCart = (item: Omit<CartItem, 'quantity'>, quantity: number) => {
     setItems(prev => {
-      const existing = prev.find(i => i.id === item.id);
+      const existing = prev.find(
+        i => i.id === item.id && i.personalize === item.personalize
+      );
       if (existing) {
         return prev.map(i => 
-          i.id === item.id 
+          i.id === item.id && i.personalize === item.personalize
             ? { ...i, quantity: i.quantity + quantity }
             : i
         );
@@ -48,17 +59,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const removeFromCart = (id: string) => {
-    setItems(prev => prev.filter(i => i.id !== id));
+  const removeFromCart = (id: string, personalize: PersonalizeChoice) => {
+    setItems(prev => prev.filter(i => !(i.id === id && i.personalize === personalize)));
   };
 
-  const updateQuantity = (id: string, quantity: number) => {
+  const updateQuantity = (id: string, personalize: PersonalizeChoice, quantity: number) => {
     if (quantity <= 0) {
-      removeFromCart(id);
+      removeFromCart(id, personalize);
       return;
     }
     setItems(prev => prev.map(i => 
-      i.id === id ? { ...i, quantity } : i
+      i.id === id && i.personalize === personalize ? { ...i, quantity } : i
     ));
   };
 
