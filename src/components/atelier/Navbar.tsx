@@ -20,7 +20,15 @@ const navLinks = [
       { name: 'Envelopes', query: 'envelopes' },
     ],
   },
-  { name: 'Gifting', path: '/gifting' },
+  {
+    name: 'Gifting',
+    path: '/gifting',
+    submenu: [
+      { name: 'Travel', query: 'travel' },
+      { name: 'Coasters', query: 'coasters' },
+      { name: 'Wine', query: 'wine' },
+    ],
+  },
   { name: 'Coffee Table Books', path: '/coffee-table-books' },
   { name: 'Invitations', path: '/invitations' },
   { name: 'About', path: '/about' },
