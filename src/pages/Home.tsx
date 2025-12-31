@@ -12,10 +12,12 @@ const categories = [
 ];
 
 const heroImages = [
-  'src/assets/blog-minimalist-living.jpg',
-  'src/assets/blog-sustainable-architecture.jpg',
-  'src/assets/blog-urban-planning.jpg',
-  'src/assets/hero-architecture.jpg',
+  // 'src/assets/blog-minimalist-living.jpg',
+  // 'src/assets/blog-sustainable-architecture.jpg',
+  // 'src/assets/blog-urban-planning.jpg',
+  // 'src/assets/hero-architecture.jpg',
+  'src/assets/IMG_0145.jpg',
+  // 'src/assets/IMG_6980.jpg',
 ];
 
 export default function Home() {

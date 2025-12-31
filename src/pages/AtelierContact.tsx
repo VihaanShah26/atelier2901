@@ -1,30 +1,88 @@
 import { useState } from 'react';
 import { Instagram, Mail, Send } from 'lucide-react';
 import PageLayout from '@/components/atelier/PageLayout';
-import { useToast } from '@/hooks/use-toast';
+import { postJSON } from '@/lib/api';
+
+type FormStatus = 'idle' | 'loading' | 'success' | 'error';
 
 export default function AtelierContact() {
-  const { toast } = useToast();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    message: ''
+    message: '',
+    companyWebsite: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [status, setStatus] = useState<FormStatus>('idle');
+  const [statusMessage, setStatusMessage] = useState('');
+
+  const updateField = (field: keyof typeof formData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (status === 'error') {
+      setStatus('idle');
+      setStatusMessage('');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.companyWebsite.trim()) {
+      setIsSubmitting(false);
+      return;
+    }
+
+    const trimmedName = formData.name.trim();
+    const trimmedEmail = formData.email.trim();
+    const trimmedMessage = formData.message.trim();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!trimmedName) {
+      setStatus('error');
+      setStatusMessage('Name is required.');
+      return;
+    }
+    if (!emailPattern.test(trimmedEmail)) {
+      setStatus('error');
+      setStatusMessage('Please enter a valid email.');
+      return;
+    }
+    if (trimmedMessage.length < 10) {
+      setStatus('error');
+      setStatusMessage('Message should be at least 10 characters.');
+      return;
+    }
+
     setIsSubmitting(true);
-    
-    // Simulate submission
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    toast({
-      title: "Thank you",
-      description: "We'll be in touch soon.",
+    setStatus('loading');
+    setStatusMessage('');
+
+    const result = await postJSON('/api/contact', {
+      name: trimmedName,
+      email: trimmedEmail,
+      message: trimmedMessage,
+      source: 'atelier2901.com',
     });
-    
-    setFormData({ name: '', email: '', message: '' });
+
+    if (result.ok) {
+      setStatus('success');
+      setStatusMessage('Message sent.');
+      setFormData({ name: '', email: '', message: '', companyWebsite: '' });
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (result.status === 400) {
+      setStatus('error');
+      setStatusMessage(result.message || 'Please check your inputs and try again.');
+    } else if (result.status === 429) {
+      setStatus('error');
+      setStatusMessage('Too many requests. Please try again in a few minutes.');
+    } else {
+      setStatus('error');
+      setStatusMessage('Something went wrong while sending. Please try again.');
+    }
+
     setIsSubmitting(false);
   };
 
@@ -62,6 +120,17 @@ export default function AtelierContact() {
 
         {/* Contact Form */}
         <form onSubmit={handleSubmit} className="space-y-8 animate-fade-in opacity-0" style={{ animationDelay: '300ms' }}>
+          {(status === 'success' || status === 'error') && (
+            <div
+              className={`border px-4 py-3 text-sm font-light ${
+                status === 'success'
+                  ? 'border-emerald-200 bg-emerald-50/60 text-emerald-800'
+                  : 'border-red-200 bg-red-50/60 text-red-800'
+              }`}
+            >
+              {statusMessage}
+            </div>
+          )}
           <div>
             <label htmlFor="name" className="block text-xs uppercase tracking-widest text-muted-foreground mb-3 font-light">
               Name
@@ -70,7 +139,7 @@ export default function AtelierContact() {
               type="text"
               id="name"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) => updateField('name', e.target.value)}
               required
               className="w-full bg-transparent border-b border-border py-3 font-light focus:outline-none focus:border-foreground transition-colors"
             />
@@ -84,7 +153,7 @@ export default function AtelierContact() {
               type="email"
               id="email"
               value={formData.email}
-              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              onChange={(e) => updateField('email', e.target.value)}
               required
               className="w-full bg-transparent border-b border-border py-3 font-light focus:outline-none focus:border-foreground transition-colors"
             />
@@ -98,18 +167,28 @@ export default function AtelierContact() {
               id="message"
               rows={4}
               value={formData.message}
-              onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
+              onChange={(e) => updateField('message', e.target.value)}
               required
               className="w-full bg-transparent border-b border-border py-3 font-light focus:outline-none focus:border-foreground transition-colors resize-none"
             />
           </div>
+
+          <input
+            type="text"
+            name="companyWebsite"
+            value={formData.companyWebsite}
+            onChange={(e) => updateField('companyWebsite', e.target.value)}
+            className="hidden"
+            tabIndex={-1}
+            autoComplete="off"
+          />
 
           <button
             type="submit"
             disabled={isSubmitting}
             className="inline-flex items-center gap-2 py-4 px-8 bg-foreground text-background text-xs uppercase tracking-widest font-light hover:bg-foreground/90 transition-colors disabled:opacity-50"
           >
-            <span>Send Message</span>
+            <span>{isSubmitting ? 'Sending...' : 'Send Message'}</span>
             <Send className="w-4 h-4" strokeWidth={1.5} />
           </button>
         </form>
