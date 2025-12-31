@@ -5,7 +5,8 @@ import PageLayout from '@/components/atelier/PageLayout';
 import { useCart } from '@/contexts/CartContext';
 
 export default function Cart() {
-  const { items, updateQuantity, removeFromCart, clearCart, totalItems } = useCart();
+  const formatRs = (value: number) => `Rs. ${value.toLocaleString('en-IN')}`;
+  const { items, updateQuantity, removeFromCart, clearCart, totalItems, subtotal } = useCart();
   const [orderPlaced, setOrderPlaced] = useState(false);
 
   const handlePlaceOrder = () => {
@@ -77,7 +78,7 @@ export default function Cart() {
         <div className="space-y-0 mb-12">
           {items.map((item, index) => (
             <div 
-              key={`${item.id}-${item.personalize}`}
+              key={`${item.id}-${item.personalize}-${item.greeting ?? 'none'}-${item.personalizationName ?? 'none'}-${item.initials ?? 'none'}`}
               className="flex flex-col items-start gap-4 py-6 border-b border-border animate-fade-in opacity-0 md:flex-row md:items-center md:gap-6"
               style={{ animationDelay: `${(index + 1) * 100}ms` }}
             >
@@ -93,15 +94,44 @@ export default function Cart() {
               {/* Details */}
               <div className="flex-1 min-w-0 w-full">
                 <h3 className="font-sans text-2l truncate">{item.name}</h3>
-                <p className="text-xs uppercase tracking-widest text-muted-foreground font-light mt-2">
+                {/* <p className="text-xs uppercase tracking-widest text-muted-foreground font-light mt-2">
                   Personalized: {item.personalize === 'yes' ? 'Yes' : 'No'}
-                </p>
+                </p> */}
+                {item.greeting !== null && (
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground font-light mt-2">
+                    Greeting: {item.greeting}
+                  </p>
+                )}
+                {item.personalizationName !== null && (
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground font-light mt-2">
+                    Name: {item.personalizationName}
+                  </p>
+                )}
+                {item.initials !== null && (
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground font-light mt-2">
+                    Initials: {item.initials}
+                  </p>
+                )}
+                {item.price !== null && (
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground font-light mt-2">
+                    Price: {formatRs(item.price)}
+                  </p>
+                )}
               </div>
 
               {/* Quantity */}
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => updateQuantity(item.id, item.personalize, item.quantity - 1)}
+                  onClick={() =>
+                    updateQuantity(
+                      item.id,
+                      item.personalize,
+                      item.greeting,
+                      item.personalizationName,
+                      item.initials,
+                      item.quantity - 1
+                    )
+                  }
                   className="w-8 h-8 border border-border flex items-center justify-center hover:border-foreground transition-colors"
                   aria-label="Decrease quantity"
                 >
@@ -109,7 +139,16 @@ export default function Cart() {
                 </button>
                 <span className="w-8 text-center font-light text-sm">{item.quantity}</span>
                 <button
-                  onClick={() => updateQuantity(item.id, item.personalize, item.quantity + 1)}
+                  onClick={() =>
+                    updateQuantity(
+                      item.id,
+                      item.personalize,
+                      item.greeting,
+                      item.personalizationName,
+                      item.initials,
+                      item.quantity + 1
+                    )
+                  }
                   className="w-8 h-8 border border-border flex items-center justify-center hover:border-foreground transition-colors"
                   aria-label="Increase quantity"
                 >
@@ -119,7 +158,15 @@ export default function Cart() {
 
               {/* Remove */}
               <button
-                onClick={() => removeFromCart(item.id, item.personalize)}
+                onClick={() =>
+                  removeFromCart(
+                    item.id,
+                    item.personalize,
+                    item.greeting,
+                    item.personalizationName,
+                    item.initials
+                  )
+                }
                 className="text-muted-foreground hover:text-foreground transition-colors self-end order-first md:order-none md:self-auto"
                 aria-label="Remove item"
               >
@@ -136,7 +183,7 @@ export default function Cart() {
               Subtotal
             </span>
             <span className="font-sans text-lg">
-              Price on request
+              {formatRs(subtotal)}
             </span>
           </div>
 
@@ -144,7 +191,7 @@ export default function Cart() {
             onClick={handlePlaceOrder}
             className="w-full py-4 bg-foreground text-background text-xs uppercase tracking-widest font-light hover:bg-foreground/90 transition-colors"
           >
-            Place Request
+            Checkout
           </button>
           
           <p className="text-center text-xs text-muted-foreground mt-4 font-light">
