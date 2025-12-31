@@ -57,6 +57,10 @@ export default function Cart() {
         totalItems,
         customerName: trimmedName,
         customerEmail: trimmedEmail,
+        customer: {
+          fullName: trimmedName,
+          email: trimmedEmail,
+        },
         createdAt: serverTimestamp(),
       });
 
