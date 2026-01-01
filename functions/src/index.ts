@@ -73,7 +73,7 @@ app.post("/api/contact", async (req, res) => {
       return res.status(429).json({ ok: false, message: "Too many requests. Please try again later." });
     }
 
-    const { name, email, message, source, companyWebsite } = req.body || {};
+    const { name, email, message, source, companyWebsite, phone } = req.body || {};
 
     // Honeypot: silently succeed to not tip off bots
     if (companyWebsite && String(companyWebsite).trim().length > 0) {
@@ -91,6 +91,7 @@ app.post("/api/contact", async (req, res) => {
     }
 
     const safeSource = source ? String(source) : "unknown";
+    const safePhone = phone ? String(phone).trim() : "";
 
     const resend = getResendClient();
     const EMAIL_FROM = getEnvOrThrow("EMAIL_FROM");
@@ -109,6 +110,9 @@ Email: ${String(email).trim()}
 
 Message:
 ${String(message).trim()}
+
+Phone:
+${safePhone || "(not provided)"}
 `,
     });
 
@@ -124,7 +128,7 @@ ${String(message).trim()}
 // Backend reads order from Firestore and emails studio + customer.
 app.post("/api/order/confirm", async (req, res) => {
   try {
-    const { orderId, customerEmail, customerName } = req.body || {};
+    const { orderId, customerEmail, customerName, customerPhone } = req.body || {};
 
     if (!orderId || String(orderId).trim().length < 5) {
       return res.status(400).json({ ok: false, message: "orderId is required." });
@@ -139,6 +143,7 @@ app.post("/api/order/confirm", async (req, res) => {
       return res.status(404).json({ ok: false, message: "Order not found." });
     }
     const order = snap.data();
+    const orderPhone = order?.customer?.phone || customerPhone || "";
 
     // Compose minimal summary
     const items = Array.isArray(order?.items) ? order.items : [];
@@ -162,6 +167,7 @@ app.post("/api/order/confirm", async (req, res) => {
 
 Order ID: ${orderId}
 Customer: ${customerName || ""} <${customerEmail}>
+Phone: ${orderPhone || "(not provided)"}
 
 Items:
 ${itemLines || "- (no items found)"}
@@ -181,6 +187,7 @@ ${order?.notes || "(none)"}
 
 We've received your order (ID: ${orderId}).
 Our team will reach out shortly to confirm details.
+Phone: ${orderPhone || "(not provided)"}
 
 Items:
 ${itemLines || "- (no items found)"}
@@ -221,6 +228,7 @@ export const onOrderCreated = onDocumentCreated(
 
     const customerEmail = data.customer?.email;
     const customerName = data.customer?.fullName || "";
+    const customerPhone = data.customer?.phone || "";
 
     // Guard: if no email on the order, don’t send customer email
     const items = Array.isArray(data.items) ? data.items : [];
@@ -244,6 +252,7 @@ export const onOrderCreated = onDocumentCreated(
 
 Order ID: ${orderId}
 Customer: ${customerName} <${customerEmail || "no email"}>
+Phone: ${customerPhone || "(not provided)"}
 
 Items:
 ${itemLines || "- (no items found)"}
@@ -264,6 +273,7 @@ ${data.notes || "(none)"}
 
 We've received your order (ID: ${orderId}).
 Our team will reach out shortly to confirm details.
+Phone: ${customerPhone || "(not provided)"}
 
 Items:
 ${itemLines || "- (no items found)"}

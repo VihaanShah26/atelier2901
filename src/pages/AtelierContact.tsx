@@ -10,6 +10,7 @@ export default function AtelierContact() {
     name: '',
     email: '',
     message: '',
+    phone: '',
     companyWebsite: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,6 +36,7 @@ export default function AtelierContact() {
     const trimmedName = formData.name.trim();
     const trimmedEmail = formData.email.trim();
     const trimmedMessage = formData.message.trim();
+    const trimmedPhone = formData.phone.trim();
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!trimmedName) {
@@ -61,13 +63,14 @@ export default function AtelierContact() {
       name: trimmedName,
       email: trimmedEmail,
       message: trimmedMessage,
+      phone: trimmedPhone || undefined,
       source: 'atelier2901.com',
     });
 
     if (result.ok) {
       setStatus('success');
       setStatusMessage('Message sent.');
-      setFormData({ name: '', email: '', message: '', companyWebsite: '' });
+      setFormData({ name: '', email: '', message: '', phone: '', companyWebsite: '' });
       setIsSubmitting(false);
       return;
     }
@@ -155,6 +158,19 @@ export default function AtelierContact() {
               value={formData.email}
               onChange={(e) => updateField('email', e.target.value)}
               required
+              className="w-full bg-transparent border-b border-border py-3 font-light focus:outline-none focus:border-foreground transition-colors"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="phone" className="block text-xs uppercase tracking-widest text-muted-foreground mb-3 font-light">
+              Phone (optional)
+            </label>
+            <input
+              type="tel"
+              id="phone"
+              value={formData.phone}
+              onChange={(e) => updateField('phone', e.target.value)}
               className="w-full bg-transparent border-b border-border py-3 font-light focus:outline-none focus:border-foreground transition-colors"
             />
           </div>

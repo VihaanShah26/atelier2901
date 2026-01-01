@@ -15,6 +15,7 @@ export default function Cart() {
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [orderNotice, setOrderNotice] = useState<{ status: 'idle' | 'loading' | 'error'; message: string }>({
     status: 'idle',
     message: '',
@@ -34,9 +35,17 @@ export default function Cart() {
     }
   };
 
+  const handleCustomerPhoneChange = (value: string) => {
+    setCustomerPhone(value);
+    if (orderNotice.status === 'error') {
+      setOrderNotice({ status: 'idle', message: '' });
+    }
+  };
+
   const handlePlaceOrder = async () => {
     const trimmedName = customerName.trim();
     const trimmedEmail = customerEmail.trim();
+    const trimmedPhone = customerPhone.trim();
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!trimmedName) {
@@ -45,6 +54,10 @@ export default function Cart() {
     }
     if (!emailPattern.test(trimmedEmail)) {
       setOrderNotice({ status: 'error', message: 'Please enter a valid email.' });
+      return;
+    }
+    if (!trimmedPhone) {
+      setOrderNotice({ status: 'error', message: 'Phone number is required.' });
       return;
     }
 
@@ -60,6 +73,7 @@ export default function Cart() {
         customer: {
           fullName: trimmedName,
           email: trimmedEmail,
+          phone: trimmedPhone,
         },
         createdAt: serverTimestamp(),
       });
@@ -68,6 +82,7 @@ export default function Cart() {
         orderId: orderRef.id,
         customerEmail: trimmedEmail,
         customerName: trimmedName,
+        customerPhone: trimmedPhone,
       });
 
       if (emailResult.ok) {
@@ -187,7 +202,7 @@ export default function Cart() {
                 )}
                 {item.price !== null && (
                   <p className="text-xs uppercase tracking-widest text-muted-foreground font-light mt-2">
-                    Price: {formatRs(item.price)}
+                    Price: {formatRs(item.price * item.quantity)}
                   </p>
                 )}
               </div>
@@ -287,6 +302,18 @@ export default function Cart() {
                 type="email"
                 value={customerEmail}
                 onChange={(event) => handleCustomerEmailChange(event.target.value)}
+                className="w-full bg-transparent border-b border-border py-3 font-light focus:outline-none focus:border-foreground transition-colors"
+              />
+            </div>
+            <div>
+              <label htmlFor="order-phone" className="block text-xs uppercase tracking-widest text-muted-foreground mb-3 font-light">
+                Phone
+              </label>
+              <input
+                id="order-phone"
+                type="tel"
+                value={customerPhone}
+                onChange={(event) => handleCustomerPhoneChange(event.target.value)}
                 className="w-full bg-transparent border-b border-border py-3 font-light focus:outline-none focus:border-foreground transition-colors"
               />
             </div>

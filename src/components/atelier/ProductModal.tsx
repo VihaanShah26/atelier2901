@@ -30,6 +30,8 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
     'stationery_premium',
     'stationery_money',
   ].includes(product.category);
+  const isStationeryEssential = product.category === 'stationery_essential';
+  const isStationeryPremium = product.category === 'stationery_premium';
   const isGiftingTravel = product.category === 'gifting_travel';
   const isGiftingProduct = isGiftingTravel || product.category === 'gifting_coasters' || product.category === 'gifting_wine';
   const effectivePersonalize = isGiftingProduct ? 'no' : personalize;
@@ -171,6 +173,12 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                     </button>
                   </div>
                 </div>
+
+                {(isStationeryEssential || isStationeryPremium) && (
+                  <p className="text-xs text-muted-foreground font-light mb-8">
+                    Each set contains 15 gift cards, 15 gift tags and 15 envelopes
+                  </p>
+                )}
 
                 {!isGiftingProduct && (
                   <div className="mb-8">

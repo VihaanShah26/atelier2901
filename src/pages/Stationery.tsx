@@ -13,7 +13,7 @@ const STATIONERY_CATEGORIES = {
   premium: {
     label: 'Premium Stationery',
     collection: 'stationery_premium',
-    description: 'Luxure in every detail.',
+    description: 'Luxury in every detail.',
   },
   envelopes: {
     label: 'Envelopes',
