@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, Minus, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Minus, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Product } from '@/hooks/useProducts';
 import { useCart } from '@/contexts/CartContext';
@@ -14,6 +14,8 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
   const formatRs = (value: number) => `Rs. ${value.toLocaleString('en-IN')}`;
   const [quantity, setQuantity] = useState(1);
   const [personalize, setPersonalize] = useState<'yes' | 'no'>('no');
+  const [goldFoil, setGoldFoil] = useState<'yes' | 'no'>('no');
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [greetingOption, setGreetingOption] = useState('No Greeting');
   const [customGreeting, setCustomGreeting] = useState('');
   const [personalizationName, setPersonalizationName] = useState('');
@@ -33,6 +35,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
   ].includes(product.category);
   const isStationeryEssential = product.category === 'stationery_essential';
   const isStationeryPremium = product.category === 'stationery_premium';
+  const supportsGoldFoil = isStationeryPremium || (product.category === 'stationery_money' && product.goldFoil === true);
   const isGiftingTravel = product.category === 'gifting_travel';
   const isGiftingProduct = isGiftingTravel || product.category === 'gifting_coasters' || product.category === 'gifting_wine';
   const effectivePersonalize = isGiftingProduct ? 'no' : personalize;
@@ -42,13 +45,17 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
   const stationeryBasePrice = product.price ?? 1900;
   const stationeryPersonalizedPrice = product.personalizedPrice ?? 2200;
   const giftingPrice = product.price ?? 2000;
-  const resolvedPrice = sizeOptions.length
+  const goldFoilPrice = supportsGoldFoil && goldFoil === 'yes' ? 300 : 0;
+  const baseResolvedPrice = sizeOptions.length
     ? selectedSizeOption?.price ?? null
     : isStationeryProduct
       ? effectivePersonalize === 'yes'
         ? stationeryPersonalizedPrice
         : stationeryBasePrice
       : product.price ?? (isGiftingProduct ? giftingPrice : null);
+  const resolvedPrice = baseResolvedPrice === null ? null : baseResolvedPrice + goldFoilPrice;
+  const productImages = product.images.length ? product.images : [product.img].filter(Boolean);
+  const selectedImage = productImages[selectedImageIndex] || productImages[0] || '';
   const greetingValue =
     isStationeryProduct && effectivePersonalize === 'yes'
       ? greetingOption === 'No Greeting'
@@ -88,6 +95,11 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
     }
   }, [product.id, sizeOptions.length]);
 
+  useEffect(() => {
+    setSelectedImageIndex(0);
+    setGoldFoil('no');
+  }, [product.id]);
+
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
@@ -102,6 +114,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
       img: product.img,
       category: product.category,
       personalize: effectivePersonalize,
+      goldFoil: supportsGoldFoil ? goldFoil : null,
       price: resolvedPrice ?? null,
       greeting: greetingValue,
       personalizationName: nameValue,
@@ -137,12 +150,42 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
 
         <div className="grid h-full md:grid-cols-2 gap-0 md:items-stretch">
           {/* Image */}
-          <div className="bg-muted md:h-full">
-            <img
-              src={product.img}
-              alt={displayName}
-              className="w-full h-full object-cover"
-            />
+          <div className="relative bg-muted md:h-full">
+            {selectedImage && (
+              <img
+                src={selectedImage}
+                alt={displayName}
+                className="w-full h-full object-cover"
+              />
+            )}
+            {productImages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedImageIndex((index) =>
+                      index === 0 ? productImages.length - 1 : index - 1
+                    )
+                  }
+                  className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center bg-background/80 text-foreground/80 transition-colors hover:text-foreground"
+                  aria-label="Previous image"
+                >
+                  <ChevronLeft className="h-5 w-5" strokeWidth={1.5} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedImageIndex((index) =>
+                      index === productImages.length - 1 ? 0 : index + 1
+                    )
+                  }
+                  className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center bg-background/80 text-foreground/80 transition-colors hover:text-foreground"
+                  aria-label="Next image"
+                >
+                  <ChevronRight className="h-5 w-5" strokeWidth={1.5} />
+                </button>
+              </>
+            )}
           </div>
 
           {/* Details */}
@@ -246,6 +289,38 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                           value="no"
                           checked={personalize === 'no'}
                           onChange={() => setPersonalize('no')}
+                          className="h-4 w-4 accent-foreground"
+                        />
+                        No
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {supportsGoldFoil && (
+                  <div className="mb-8">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-light">
+                      Do you want gold foil?
+                    </p>
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-2 text-sm font-light text-foreground/80">
+                        <input
+                          type="radio"
+                          name="goldFoil"
+                          value="yes"
+                          checked={goldFoil === 'yes'}
+                          onChange={() => setGoldFoil('yes')}
+                          className="h-4 w-4 accent-foreground"
+                        />
+                        Yes
+                      </label>
+                      <label className="flex items-center gap-2 text-sm font-light text-foreground/80">
+                        <input
+                          type="radio"
+                          name="goldFoil"
+                          value="no"
+                          checked={goldFoil === 'no'}
+                          onChange={() => setGoldFoil('no')}
                           className="h-4 w-4 accent-foreground"
                         />
                         No

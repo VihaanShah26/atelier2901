@@ -7,6 +7,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, onClick }: ProductCardProps) {
   const displayName = product.name || 'ATELIER 2901';
+  const imageSrc = product.images[0] || product.img;
 
   return (
     <div 
@@ -15,7 +16,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
     >
       <div className="aspect-square overflow-hidden bg-muted mb-4">
         <img
-          src={product.img}
+          src={imageSrc}
           alt={displayName}
           className="product-image w-full h-full object-cover transition-transform duration-500 ease-out"
           loading="lazy"

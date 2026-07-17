@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 export type PersonalizeChoice = 'yes' | 'no';
+export type GoldFoilChoice = 'yes' | 'no' | null;
 
 export interface CartItem {
   id: string;
@@ -9,6 +10,7 @@ export interface CartItem {
   category: string;
   quantity: number;
   personalize: PersonalizeChoice;
+  goldFoil: GoldFoilChoice;
   price: number | null;
   greeting: string | null;
   personalizationName: string | null;
@@ -25,7 +27,8 @@ interface CartContextType {
     greeting: string | null,
     personalizationName: string | null,
     initials: string | null,
-    size: string | null
+    size: string | null,
+    goldFoil: GoldFoilChoice
   ) => void;
   updateQuantity: (
     id: string,
@@ -34,6 +37,7 @@ interface CartContextType {
     personalizationName: string | null,
     initials: string | null,
     size: string | null,
+    goldFoil: GoldFoilChoice,
     quantity: number
   ) => void;
   clearCart: () => void;
@@ -55,6 +59,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return parsed.map((item) => ({
         ...item,
         personalize: item.personalize === 'yes' ? 'yes' : 'no',
+        goldFoil: item.goldFoil === 'yes' ? 'yes' : item.goldFoil === 'no' ? 'no' : null,
         price: typeof item.price === 'number' ? item.price : null,
         greeting: typeof item.greeting === 'string' ? item.greeting : null,
         personalizationName:
@@ -79,7 +84,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           i.greeting === item.greeting &&
           i.personalizationName === item.personalizationName &&
           i.initials === item.initials &&
-          i.size === item.size
+          i.size === item.size &&
+          i.goldFoil === item.goldFoil
       );
       if (existing) {
         return prev.map(i => 
@@ -88,7 +94,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           i.greeting === item.greeting &&
           i.personalizationName === item.personalizationName &&
           i.initials === item.initials &&
-          i.size === item.size
+          i.size === item.size &&
+          i.goldFoil === item.goldFoil
             ? { ...i, quantity: i.quantity + quantity }
             : i
         );
@@ -103,7 +110,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     greeting: string | null,
     personalizationName: string | null,
     initials: string | null,
-    size: string | null
+    size: string | null,
+    goldFoil: GoldFoilChoice
   ) => {
     setItems(prev =>
       prev.filter(
@@ -114,7 +122,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             i.greeting === greeting &&
             i.personalizationName === personalizationName &&
             i.initials === initials &&
-            i.size === size
+            i.size === size &&
+            i.goldFoil === goldFoil
           )
       )
     );
@@ -127,10 +136,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     personalizationName: string | null,
     initials: string | null,
     size: string | null,
+    goldFoil: GoldFoilChoice,
     quantity: number
   ) => {
     if (quantity <= 0) {
-      removeFromCart(id, personalize, greeting, personalizationName, initials, size);
+      removeFromCart(id, personalize, greeting, personalizationName, initials, size, goldFoil);
       return;
     }
     setItems(prev => prev.map(i => 
@@ -139,7 +149,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       i.greeting === greeting &&
       i.personalizationName === personalizationName &&
       i.initials === initials &&
-      i.size === size
+      i.size === size &&
+      i.goldFoil === goldFoil
         ? { ...i, quantity }
         : i
     ));

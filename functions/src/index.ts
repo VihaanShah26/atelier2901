@@ -62,6 +62,47 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function formatCurrency(value: any) {
+  const numberValue = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numberValue)) return "Price not set";
+  return `Rs. ${numberValue.toLocaleString("en-IN")}`;
+}
+
+function formatOrderItems(items: any[]) {
+  return items.map((it: any, index: number) => {
+    const nm = it?.name || "ATELIER 2901";
+    const qty = Number(it?.quantity) || 1;
+    const unitPrice = typeof it?.price === "number" ? it.price : null;
+    const lineTotal = unitPrice === null ? null : unitPrice * qty;
+    const details = [
+      `  Quantity: ${qty}`,
+      `  Unit price: ${unitPrice === null ? "Price not set" : formatCurrency(unitPrice)}`,
+      `  Line total: ${lineTotal === null ? "Price not set" : formatCurrency(lineTotal)}`,
+    ];
+
+    if (it?.personalize === "yes" || it?.personalize === "no") {
+      details.push(`  Personalized: ${it.personalize === "yes" ? "Yes" : "No"}`);
+    }
+    if (typeof it?.greeting === "string" && it.greeting.trim()) {
+      details.push(`  Greeting: ${it.greeting.trim()}`);
+    }
+    if (typeof it?.personalizationName === "string" && it.personalizationName.trim()) {
+      details.push(`  Name: ${it.personalizationName.trim()}`);
+    }
+    if (typeof it?.initials === "string" && it.initials.trim()) {
+      details.push(`  Initials: ${it.initials.trim()}`);
+    }
+    if (typeof it?.size === "string" && it.size.trim()) {
+      details.push(`  Size: ${it.size.trim()}`);
+    }
+    if (it?.goldFoil === "yes" || it?.goldFoil === "no") {
+      details.push(`  Gold foil: ${it.goldFoil === "yes" ? "Yes" : "No"}`);
+    }
+
+    return `${index + 1}. ${nm}\n${details.join("\n")}`;
+  }).join("\n\n");
+}
+
 // ---- POST /api/contact ----
 app.post("/api/contact", async (req, res) => {
   try {
@@ -145,13 +186,9 @@ app.post("/api/order/confirm", async (req, res) => {
     const order = snap.data();
     const orderPhone = order?.customer?.phone || customerPhone || "";
 
-    // Compose minimal summary
     const items = Array.isArray(order?.items) ? order.items : [];
-    const itemLines = items.map((it: any) => {
-      const nm = it?.name || "ATELIER 2901";
-      const qty = it?.quantity || 1;
-      return `- ${nm} x${qty}`;
-    }).join("\n");
+    const itemLines = formatOrderItems(items);
+    const subtotal = typeof order?.subtotal === "number" ? order.subtotal : null;
 
     const resend = getResendClient();
     const EMAIL_FROM = getEnvOrThrow("EMAIL_FROM");
@@ -172,6 +209,9 @@ Phone: ${orderPhone || "(not provided)"}
 Items:
 ${itemLines || "- (no items found)"}
 
+Subtotal:
+${subtotal === null ? "Price not set" : formatCurrency(subtotal)}
+
 Notes:
 ${order?.notes || "(none)"}
 `,
@@ -191,6 +231,9 @@ Phone: ${orderPhone || "(not provided)"}
 
 Items:
 ${itemLines || "- (no items found)"}
+
+Subtotal:
+${subtotal === null ? "Price not set" : formatCurrency(subtotal)}
 
 Thank you,
 ATELIER 2901
@@ -230,13 +273,9 @@ export const onOrderCreated = onDocumentCreated(
     const customerName = data.customer?.fullName || "";
     const customerPhone = data.customer?.phone || "";
 
-    // Guard: if no email on the order, don’t send customer email
     const items = Array.isArray(data.items) ? data.items : [];
-    const itemLines = items.map((it: any) => {
-      const nm = it?.name || "ATELIER 2901";
-      const qty = it?.quantity || 1;
-      return `- ${nm} x${qty}`;
-    }).join("\n");
+    const itemLines = formatOrderItems(items);
+    const subtotal = typeof data.subtotal === "number" ? data.subtotal : null;
 
     const resend = getResendClient();
     const EMAIL_FROM = getEnvOrThrow("EMAIL_FROM");
@@ -256,6 +295,9 @@ Phone: ${customerPhone || "(not provided)"}
 
 Items:
 ${itemLines || "- (no items found)"}
+
+Subtotal:
+${subtotal === null ? "Price not set" : formatCurrency(subtotal)}
 
 Notes:
 ${data.notes || "(none)"}
@@ -277,6 +319,9 @@ Phone: ${customerPhone || "(not provided)"}
 
 Items:
 ${itemLines || "- (no items found)"}
+
+Subtotal:
+${subtotal === null ? "Price not set" : formatCurrency(subtotal)}
 
 Thank you,
 ATELIER 2901

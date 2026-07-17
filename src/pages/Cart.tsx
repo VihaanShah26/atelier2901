@@ -166,7 +166,7 @@ export default function Cart() {
         <div className="space-y-0 mb-12">
           {items.map((item, index) => (
             <div 
-              key={`${item.id}-${item.personalize}-${item.greeting ?? 'none'}-${item.personalizationName ?? 'none'}-${item.initials ?? 'none'}-${item.size ?? 'none'}`}
+              key={`${item.id}-${item.personalize}-${item.greeting ?? 'none'}-${item.personalizationName ?? 'none'}-${item.initials ?? 'none'}-${item.size ?? 'none'}-${item.goldFoil ?? 'none'}`}
               className="flex flex-col items-start gap-4 py-6 border-b border-border animate-fade-in opacity-0 md:flex-row md:items-center md:gap-6"
               style={{ animationDelay: `${(index + 1) * 100}ms` }}
             >
@@ -205,6 +205,11 @@ export default function Cart() {
                     Size: {item.size}
                   </p>
                 )}
+                {item.goldFoil !== null && (
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground font-light mt-2">
+                    Gold foil: {item.goldFoil === 'yes' ? 'Yes' : 'No'}
+                  </p>
+                )}
                 {item.price !== null && (
                   <p className="text-xs uppercase tracking-widest text-muted-foreground font-light mt-2">
                     Price: {formatRs(item.price * item.quantity)}
@@ -223,6 +228,7 @@ export default function Cart() {
                       item.personalizationName,
                       item.initials,
                       item.size,
+                      item.goldFoil,
                       item.quantity - 1
                     )
                   }
@@ -241,6 +247,7 @@ export default function Cart() {
                       item.personalizationName,
                       item.initials,
                       item.size,
+                      item.goldFoil,
                       item.quantity + 1
                     )
                   }
@@ -260,7 +267,8 @@ export default function Cart() {
                     item.greeting,
                     item.personalizationName,
                     item.initials,
-                    item.size
+                    item.size,
+                    item.goldFoil
                   )
                 }
                 className="text-muted-foreground hover:text-foreground transition-colors self-end order-first md:order-none md:self-auto"

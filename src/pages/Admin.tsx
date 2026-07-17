@@ -378,13 +378,13 @@ export default function Admin() {
                             </div>
                             <div>
                               <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-3 font-light">
-                                Image URL
+                                Image URLS
                               </label>
-                              <input
-                                type="text"
+                              <textarea
                                 value={draft.img ?? ''}
                                 onChange={(event) => updateDraft(itemKey, 'img', event.target.value)}
-                                className="w-full bg-transparent border-b border-border py-2 font-light focus:outline-none focus:border-foreground transition-colors"
+                                className="w-full border border-border bg-background px-3 py-2 text-sm font-light text-foreground/80 focus:outline-none focus:ring-1 focus:ring-foreground/20"
+                                rows={3}
                               />
                             </div>
                             <div>
