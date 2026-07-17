@@ -197,6 +197,12 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                   </p>
                 )}
 
+                {(isGiftingTravel) && (
+                  <p className="text-xs text-muted-foreground font-light mb-8">
+                    Made with vegan leather and brass detailing. 
+                  </p>
+                )}
+
                 {showSizeSelector && (
                   <div className="mb-8">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-light">

@@ -114,7 +114,7 @@ export default function Cart() {
               Thank you
             </h1>
             <p className="text-muted-foreground font-light mb-8">
-              We'll reach out to confirm details.
+              We'll reach out to confirm your order details and share the invoice.
             </p>
             <Link 
               to="/"
