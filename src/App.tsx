@@ -12,6 +12,7 @@ import Invitations from "./pages/Invitations";
 import AtelierAbout from "./pages/AtelierAbout";
 import AtelierContact from "./pages/AtelierContact";
 import Cart from "./pages/Cart";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
 
@@ -35,6 +36,7 @@ function App() {
               <Route path="/about" element={<AtelierAbout />} />
               <Route path="/contact" element={<AtelierContact />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/admin" element={<Admin />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

@@ -7,6 +7,9 @@ export interface Product {
   name: string;
   img: string;
   category: string;
+  price: number | null;
+  personalizedPrice?: number | null;
+  sizes?: Array<{ label: string; price: number }> | null;
 }
 
 export function useProducts(collectionNames: string[]) {
@@ -27,11 +30,21 @@ export function useProducts(collectionNames: string[]) {
           
           querySnapshot.forEach((doc) => {
             const data = doc.data();
+            const rawSizes = Array.isArray(data.sizes) ? data.sizes : [];
+            const sizes = rawSizes
+              .map((size) => ({
+                label: typeof size?.label === 'string' ? size.label : '',
+                price: typeof size?.price === 'number' ? size.price : Number(size?.price),
+              }))
+              .filter((size) => size.label && Number.isFinite(size.price));
             allProducts.push({
               id: `${collectionName}-${doc.id}`,
               name: data.name || '',
               img: data.img || '',
               category: collectionName,
+              price: typeof data.price === 'number' ? data.price : null,
+              personalizedPrice: typeof data.personalizedPrice === 'number' ? data.personalizedPrice : null,
+              sizes: sizes.length ? sizes : null,
             });
           });
         }

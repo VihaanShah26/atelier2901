@@ -18,6 +18,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
   const [customGreeting, setCustomGreeting] = useState('');
   const [personalizationName, setPersonalizationName] = useState('');
   const [initials, setInitials] = useState('');
+  const [selectedSize, setSelectedSize] = useState('');
   const { addToCart } = useCart();
   const { toast } = useToast();
   const modalRef = useRef<HTMLDivElement>(null);
@@ -35,12 +36,19 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
   const isGiftingTravel = product.category === 'gifting_travel';
   const isGiftingProduct = isGiftingTravel || product.category === 'gifting_coasters' || product.category === 'gifting_wine';
   const effectivePersonalize = isGiftingProduct ? 'no' : personalize;
-  const stationeryPrice = isStationeryProduct
-    ? effectivePersonalize === 'yes'
-      ? 2200
-      : 1900
-    : null;
-  const giftingPrice = isGiftingProduct ? 2000 : null;
+  const sizeOptions = Array.isArray(product.sizes) ? product.sizes : [];
+  const selectedSizeOption = sizeOptions.find((size) => size.label === selectedSize) || sizeOptions[0];
+  const showSizeSelector = sizeOptions.length > 1;
+  const stationeryBasePrice = product.price ?? 1900;
+  const stationeryPersonalizedPrice = product.personalizedPrice ?? 2200;
+  const giftingPrice = product.price ?? 2000;
+  const resolvedPrice = sizeOptions.length
+    ? selectedSizeOption?.price ?? null
+    : isStationeryProduct
+      ? effectivePersonalize === 'yes'
+        ? stationeryPersonalizedPrice
+        : stationeryBasePrice
+      : product.price ?? (isGiftingProduct ? giftingPrice : null);
   const greetingValue =
     isStationeryProduct && effectivePersonalize === 'yes'
       ? greetingOption === 'No Greeting'
@@ -72,6 +80,14 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
     };
   }, [onClose]);
 
+  useEffect(() => {
+    if (sizeOptions.length) {
+      setSelectedSize(sizeOptions[0].label);
+    } else {
+      setSelectedSize('');
+    }
+  }, [product.id, sizeOptions.length]);
+
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
@@ -86,10 +102,11 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
       img: product.img,
       category: product.category,
       personalize: effectivePersonalize,
-      price: stationeryPrice ?? giftingPrice,
+      price: resolvedPrice ?? null,
       greeting: greetingValue,
       personalizationName: nameValue,
       initials: initialsValue,
+      size: selectedSizeOption?.label ?? null,
     }, quantity);
     
     toast({
@@ -178,6 +195,25 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                   <p className="text-xs text-muted-foreground font-light mb-8">
                     Each set contains 15 gift cards, 15 gift tags and 15 envelopes
                   </p>
+                )}
+
+                {showSizeSelector && (
+                  <div className="mb-8">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-light">
+                      Size
+                    </p>
+                    <select
+                      value={selectedSize}
+                      onChange={(event) => setSelectedSize(event.target.value)}
+                      className="w-full border border-border bg-background px-3 py-2 text-sm font-light text-foreground/80 focus:outline-none focus:ring-1 focus:ring-foreground/20"
+                    >
+                      {sizeOptions.map((size) => (
+                        <option key={size.label} value={size.label}>
+                          {size.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 )}
 
                 {!isGiftingProduct && (
@@ -274,13 +310,13 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                   </div>
                 )}
 
-                {(isStationeryProduct || isGiftingProduct) && (
+                {(isStationeryProduct || isGiftingProduct || sizeOptions.length) && (
                   <div className="mb-8">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-light">
                       Price
                     </p>
                     <p className="text-sm font-light text-foreground/80">
-                      {formatRs(stationeryPrice ?? giftingPrice ?? 0)}
+                      {formatRs(resolvedPrice ?? 0)}
                     </p>
                   </div>
                 )}

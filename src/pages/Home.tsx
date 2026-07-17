@@ -52,14 +52,14 @@ export default function Home() {
         </div>
         <div className="relative mx-auto flex w-full max-w-6xl min-h-[calc(100vh-64px)] lg:min-h-[calc(100vh-80px)] items-center justify-center md:justify-end">
           <div className="max-w-2xl text-center md:text-right text-white">
-            <h1 className="font-sans text-xl sm:text-2xl md:text-4xl lg:text-5xl leading-tight animate-fade-in opacity-0">
+            <h1 className="font-sans text-xl sm:text-xl md:text-2xl lg:text-3xl leading-tight animate-fade-in opacity-0">
               <TextType
                 text={[
-                  'Luxury stationery. Elevated gifting. Designed for you.',
-                  'Bespoke design, thoughtfully crafted.',
-                  "Tailored designs for life's most meaningful moments.",
-                  'Where craftsmanship, creativity, and personalization converge.',
-                  'Quiet luxury, designed with purpose.',
+                  'Luxe stationery. \nElevated gifting. Designed for you.',
+                  'Bespoke design, \nthoughtfully crafted.',
+                  "Tailored designs \nfor life's most meaningful moments.",
+                  'Where craftsmanship, creativity, \nand personalization converge.',
+                  'Quiet luxury, \ndesigned with purpose.',
                 ]}
                 typingSpeed={65}
                 pauseDuration={1700}
