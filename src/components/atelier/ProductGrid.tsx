@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Product } from '@/hooks/useProducts';
 import ProductCard from './ProductCard';
 import ProductModal from './ProductModal';
@@ -12,6 +12,27 @@ interface ProductGridProps {
 
 export default function ProductGrid({ products, loading, error }: ProductGridProps) {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const preloadedImages = useRef(new Map<string, HTMLImageElement>());
+
+  useEffect(() => {
+    if (loading || error || products.length === 0) return;
+
+    const imageUrls = new Set(
+      products.flatMap((product) =>
+        product.images.length ? product.images : [product.img].filter(Boolean)
+      )
+    );
+
+    imageUrls.forEach((url) => {
+      if (!url || preloadedImages.current.has(url)) return;
+
+      const image = new Image();
+      image.decoding = 'async';
+      image.loading = 'eager';
+      image.src = url;
+      preloadedImages.current.set(url, image);
+    });
+  }, [error, loading, products]);
 
   if (loading) {
     return (
