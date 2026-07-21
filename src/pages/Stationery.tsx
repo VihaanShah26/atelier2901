@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import PageLayout from '@/components/atelier/PageLayout';
+import HamperSlideshow from '@/components/atelier/HamperSlideshow';
 import ProductGrid from '@/components/atelier/ProductGrid';
 import { useProducts } from '@/hooks/useProducts';
 
@@ -20,6 +21,11 @@ const STATIONERY_CATEGORIES = {
     collection: 'stationery_money',
     description: 'Elegant details that elevate gifting.',
   },
+  hampers: {
+    label: 'Stationery Hampers',
+    collection: 'stationery_hampers',
+    description: 'Curated exclusively for you.',
+  },
 } as const;
 
 type StationeryCategoryKey = keyof typeof STATIONERY_CATEGORIES;
@@ -38,12 +44,21 @@ export default function Stationery() {
   );
   const { products, loading, error } = useProducts(collections);
   const { label, description } = STATIONERY_CATEGORIES[activeCategory];
+  const isHamperCollection = activeCategory === 'hampers';
+
+  if (isHamperCollection) {
+    return (
+      <PageLayout>
+        <HamperSlideshow title={label} products={products} loading={loading} error={error} />
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout>
       <section className="max-w-7xl mx-auto px-6 lg:px-12 py-16 lg:py-16">
         <div className="mb-8 lg:mb-8">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4 font-light animate-fade-in opacity-0">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2 font-light animate-fade-in opacity-0">
             Collection
           </p>
           <h1 className="font-sans md:text-2xl lg:text-3xl animate-fade-in opacity-0" style={{ animationDelay: '100ms' }}>

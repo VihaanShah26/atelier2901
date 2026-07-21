@@ -11,7 +11,7 @@ export default function CoffeeTableBooks() {
     <PageLayout>
       <section className="max-w-7xl mx-auto px-6 lg:px-12 py-16 lg:py-16">
         <div className="mb-8 lg:mb-8">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4 font-light animate-fade-in opacity-0">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2 font-light animate-fade-in opacity-0">
             Collection
           </p>
           <h1 className="font-sans md:text-2xl lg:text-3xl animate-fade-in opacity-0" style={{ animationDelay: '100ms' }}>

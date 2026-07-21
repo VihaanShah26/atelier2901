@@ -20,11 +20,13 @@ const COLLECTIONS = [
   { id: 'stationery_essential', label: 'Stationery - Essential' },
   { id: 'stationery_premium', label: 'Stationery - Premium' },
   { id: 'stationery_money', label: 'Stationery - Money' },
+  { id: 'stationery_hampers', label: 'Stationery - Hampers' },
   { id: 'gifting_travel', label: 'Gifting - Travel' },
   { id: 'gifting_coasters', label: 'Gifting - Coasters' },
   { id: 'gifting_wine', label: 'Gifting - Wine' },
   { id: 'coffeetablebooks', label: 'Coffee Table Books' },
   { id: 'invitations', label: 'Invitations' },
+  { id: 'hampers', label: 'Hampers' },
 ];
 
 const RESERVED_FIELDS = new Set(['name', 'img', 'price', 'personalizedPrice', 'sizes']);

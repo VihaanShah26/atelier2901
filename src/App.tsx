@@ -9,6 +9,7 @@ import Stationery from "./pages/Stationery";
 import Gifting from "./pages/Gifting";
 import CoffeeTableBooks from "./pages/CoffeeTableBooks";
 import Invitations from "./pages/Invitations";
+import Hampers from "./pages/Hampers";
 import AtelierAbout from "./pages/AtelierAbout";
 import AtelierContact from "./pages/AtelierContact";
 import Cart from "./pages/Cart";
@@ -33,6 +34,7 @@ function App() {
               <Route path="/gifting" element={<Gifting />} />
               <Route path="/coffee-table-books" element={<CoffeeTableBooks />} />
               <Route path="/invitations" element={<Invitations />} />
+              <Route path="/hampers" element={<Hampers />} />
               <Route path="/about" element={<AtelierAbout />} />
               <Route path="/contact" element={<AtelierContact />} />
               <Route path="/cart" element={<Cart />} />

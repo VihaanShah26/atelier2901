@@ -18,6 +18,7 @@ const navLinks = [
       { name: 'Essential', query: 'essential' },
       { name: 'Premium', query: 'premium' },
       { name: 'Envelopes', query: 'envelopes' },
+      { name: 'Hampers', query: 'hampers' },
     ],
   },
   {
@@ -31,6 +32,7 @@ const navLinks = [
   },
   { name: 'Coffee Table Books', path: '/coffee-table-books' },
   { name: 'Invitations', path: '/invitations' },
+  { name: 'Hampers', path: '/hampers' },
   { name: 'About', path: '/about' },
   { name: 'Contact', path: '/contact' },
 ];
