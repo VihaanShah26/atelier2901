@@ -4,11 +4,11 @@ import { useProducts } from '@/hooks/useProducts';
 
 interface HampersProps {
   title?: string;
-  collection?: string;
+  collections?: string[];
 }
 
-export default function Hampers({ title = 'Hampers', collection = 'hampers' }: HampersProps) {
-  const { products, loading, error } = useProducts([collection]);
+export default function Hampers({ title = 'Hampers', collections = ['hampers', 'stationery_hampers'] }: HampersProps) {
+  const { products, loading, error } = useProducts(collections);
 
   return (
     <PageLayout>

@@ -47,7 +47,9 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
   const giftingPrice = product.price ?? 2000;
   const goldFoilPrice = supportsGoldFoil && goldFoil === 'yes' ? 300 : 0;
   const baseResolvedPrice = sizeOptions.length
-    ? selectedSizeOption?.price ?? null
+    ? effectivePersonalize === 'yes'
+      ? selectedSizeOption?.personalizedPrice ?? selectedSizeOption?.price ?? null
+      : selectedSizeOption?.price ?? null
     : isStationeryProduct
       ? effectivePersonalize === 'yes'
         ? stationeryPersonalizedPrice

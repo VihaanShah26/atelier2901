@@ -10,7 +10,7 @@ export interface Product {
   category: string;
   price: number | null;
   personalizedPrice?: number | null;
-  sizes?: Array<{ label: string; price: number }> | null;
+  sizes?: Array<{ label: string; price: number; personalizedPrice?: number | null }> | null;
   goldFoil?: boolean;
 }
 
@@ -46,8 +46,18 @@ export function useProducts(collectionNames: string[]) {
               .map((size) => ({
                 label: typeof size?.label === 'string' ? size.label : '',
                 price: typeof size?.price === 'number' ? size.price : Number(size?.price),
+                personalizedPrice:
+                  typeof size?.personalizedPrice === 'number'
+                    ? size.personalizedPrice
+                    : size?.personalizedPrice === null || size?.personalizedPrice === undefined || size?.personalizedPrice === ''
+                      ? null
+                      : Number(size?.personalizedPrice),
               }))
-              .filter((size) => size.label && Number.isFinite(size.price));
+              .filter((size) => size.label && Number.isFinite(size.price))
+              .map((size) => ({
+                ...size,
+                personalizedPrice: Number.isFinite(size.personalizedPrice) ? size.personalizedPrice : null,
+              }));
             allProducts.push({
               id: `${collectionName}-${doc.id}`,
               name: data.name || '',

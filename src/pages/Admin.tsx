@@ -3,7 +3,7 @@ import PageLayout from '@/components/atelier/PageLayout';
 import { db } from '@/lib/firebase';
 import { collection, doc, getDocs, updateDoc } from 'firebase/firestore';
 
-type SizeOption = { label: string; price: number };
+type SizeOption = { label: string; price: number | ''; personalizedPrice?: number | '' | null };
 type FieldType = 'string' | 'number' | 'boolean' | 'json';
 
 type AdminItem = {
@@ -30,6 +30,12 @@ const COLLECTIONS = [
 ];
 
 const RESERVED_FIELDS = new Set(['name', 'img', 'price', 'personalizedPrice', 'sizes']);
+const KNOWN_OPTION_FIELDS: Array<{ key: string; label: string; type: FieldType; defaultValue: any }> = [
+  { key: 'goldFoil', label: 'Gold Foil', type: 'boolean', defaultValue: false },
+];
+const KNOWN_OPTION_FIELD_LABELS = Object.fromEntries(
+  KNOWN_OPTION_FIELDS.map((field) => [field.key, field.label])
+);
 
 const getFieldType = (value: any): FieldType => {
   if (value === null || value === undefined) return 'string';
@@ -101,6 +107,12 @@ export default function Admin() {
               draft.sizes = [];
               types.sizes = 'json';
             }
+            KNOWN_OPTION_FIELDS.forEach((field) => {
+              if (!(field.key in draft)) {
+                draft[field.key] = field.defaultValue;
+                types[field.key] = field.type;
+              }
+            });
 
             nextDrafts[itemKey] = {
               name: draft.name ?? '',
@@ -110,7 +122,18 @@ export default function Admin() {
               sizes: Array.isArray(data.sizes)
                 ? data.sizes.map((size: any) => ({
                     label: typeof size?.label === 'string' ? size.label : '',
-                    price: typeof size?.price === 'number' ? size.price : Number(size?.price),
+                    price:
+                      typeof size?.price === 'number'
+                        ? size.price
+                        : size?.price === null || size?.price === undefined || size?.price === ''
+                          ? ''
+                          : Number(size?.price),
+                    personalizedPrice:
+                      typeof size?.personalizedPrice === 'number'
+                        ? size.personalizedPrice
+                        : size?.personalizedPrice === null || size?.personalizedPrice === undefined || size?.personalizedPrice === ''
+                          ? ''
+                          : Number(size?.personalizedPrice),
                   }))
                 : [],
               ...Object.fromEntries(
@@ -161,13 +184,13 @@ export default function Admin() {
     }));
   };
 
-  const updateSize = (itemKey: string, index: number, field: 'label' | 'price', value: string) => {
+  const updateSize = (itemKey: string, index: number, field: 'label' | 'price' | 'personalizedPrice', value: string) => {
     setDrafts((prev) => {
       const sizes = Array.isArray(prev[itemKey]?.sizes) ? [...prev[itemKey].sizes] : [];
-      const current = sizes[index] || { label: '', price: 0 };
+      const current = sizes[index] || { label: '', price: '', personalizedPrice: '' };
       sizes[index] = {
         ...current,
-        [field]: field === 'price' ? Number(value) : value,
+        [field]: field === 'label' ? value : value === '' ? '' : Number(value),
       };
       return {
         ...prev,
@@ -186,7 +209,7 @@ export default function Admin() {
   const addSize = (itemKey: string) => {
     setDrafts((prev) => {
       const sizes = Array.isArray(prev[itemKey]?.sizes) ? [...prev[itemKey].sizes] : [];
-      sizes.push({ label: '', price: 0 });
+      sizes.push({ label: '', price: '', personalizedPrice: '' });
       return {
         ...prev,
         [itemKey]: {
@@ -234,10 +257,18 @@ export default function Admin() {
 
     const sizes = Array.isArray(draft.sizes)
       ? draft.sizes
-          .map((size: SizeOption) => ({
-            label: String(size.label ?? '').trim(),
-            price: Number(size.price),
-          }))
+          .map((size: SizeOption) => {
+            const price = Number(size.price);
+            const personalizedPrice =
+              size.personalizedPrice === '' || size.personalizedPrice === null || size.personalizedPrice === undefined
+                ? null
+                : Number(size.personalizedPrice);
+            return {
+              label: String(size.label ?? '').trim(),
+              price,
+              personalizedPrice: Number.isFinite(personalizedPrice) ? personalizedPrice : null,
+            };
+          })
           .filter((size: SizeOption) => size.label && Number.isFinite(size.price))
       : [];
     payload.sizes = sizes;
@@ -426,7 +457,7 @@ export default function Admin() {
                               </button>
                             </div>
                             {(Array.isArray(draft.sizes) ? draft.sizes : []).map((size: SizeOption, index: number) => (
-                              <div key={`${itemKey}-size-${index}`} className="grid grid-cols-1 md:grid-cols-[1fr_160px_auto] gap-3 items-center">
+                              <div key={`${itemKey}-size-${index}`} className="grid grid-cols-1 md:grid-cols-[1fr_150px_190px_auto] gap-3 items-center">
                                 <input
                                   type="text"
                                   value={size.label}
@@ -439,6 +470,13 @@ export default function Admin() {
                                   value={Number.isFinite(size.price) ? size.price : ''}
                                   onChange={(event) => updateSize(itemKey, index, 'price', event.target.value)}
                                   placeholder="Price"
+                                  className="w-full bg-transparent border-b border-border py-2 font-light focus:outline-none focus:border-foreground transition-colors"
+                                />
+                                <input
+                                  type="number"
+                                  value={Number.isFinite(size.personalizedPrice) ? size.personalizedPrice : ''}
+                                  onChange={(event) => updateSize(itemKey, index, 'personalizedPrice', event.target.value)}
+                                  placeholder="Personalized price"
                                   className="w-full bg-transparent border-b border-border py-2 font-light focus:outline-none focus:border-foreground transition-colors"
                                 />
                                 <button
@@ -454,7 +492,7 @@ export default function Admin() {
                           {otherFields.length > 0 && (
                             <div className="space-y-4">
                               <p className="text-xs uppercase tracking-widest text-muted-foreground font-light">
-                                Other Fields
+                                Options / Other Fields
                               </p>
                               <div className="grid md:grid-cols-2 gap-6">
                                 {otherFields.map((key) => {
@@ -463,7 +501,7 @@ export default function Admin() {
                                   return (
                                     <div key={`${itemKey}-${key}`}>
                                       <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-3 font-light">
-                                        {key}
+                                        {KNOWN_OPTION_FIELD_LABELS[key] ?? key}
                                       </label>
                                       {type === 'boolean' ? (
                                         <input

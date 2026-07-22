@@ -8,6 +8,7 @@ interface HamperSlideshowProps {
   products: Product[];
   loading: boolean;
   error: string | null;
+  showImageName?: boolean;
 }
 
 type Slide = {
@@ -16,7 +17,7 @@ type Slide = {
   image: string;
 };
 
-export default function HamperSlideshow({ title, products, loading, error }: HamperSlideshowProps) {
+export default function HamperSlideshow({ title, products, loading, error, showImageName = true }: HamperSlideshowProps) {
   const [activeIndex, setActiveIndex] = useState(0);
 
   const slides = useMemo<Slide[]>(
@@ -50,7 +51,7 @@ export default function HamperSlideshow({ title, products, loading, error }: Ham
 
     const timer = window.setInterval(() => {
       setActiveIndex((index) => (index + 1) % slides.length);
-    }, 5000);
+    }, 2500);
 
     return () => window.clearInterval(timer);
   }, [slides.length]);
@@ -119,11 +120,13 @@ export default function HamperSlideshow({ title, products, loading, error }: Ham
           />
         ))}
 
-        <div className="absolute inset-x-0 bottom-12 z-10 flex justify-center px-6 text-center">
-          <h2 className="font-sans text-2xl text-white drop-shadow-md md:text-3xl">
-            {activeSlide.name}
-          </h2>
-        </div>
+        {showImageName && activeSlide.name && (
+          <div className="absolute inset-x-0 bottom-12 z-10 flex justify-center px-6 text-center">
+            <h2 className="font-sans text-2xl text-white drop-shadow-md md:text-3xl">
+              {activeSlide.name}
+            </h2>
+          </div>
+        )}
 
         {slides.length > 1 && (
           <>
