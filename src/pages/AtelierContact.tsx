@@ -101,11 +101,11 @@ export default function AtelierContact() {
         {/* Contact Info */}
         <div className="space-y-4 mb-16 animate-fade-in opacity-0" style={{ animationDelay: '200ms' }}>
           <a 
-            href="mailto:payal.shah@atelier2901.com"
+            href="mailto:orders@atelier2901.com"
             className="flex items-center gap-3 text-muted-foreground hover:text-foreground transition-colors group"
           >
             <Mail className="w-5 h-5" strokeWidth={1.5} />
-            <span className="font-light">payal.shah@atelier2901.com</span>
+            <span className="font-light">orders@atelier2901.com</span>
           </a>
           <a 
             href="https://instagram.com/atelier_2901"

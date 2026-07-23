@@ -8,11 +8,11 @@ export default function Footer() {
           {/* Contact */}
           <div className="flex items-center gap-6">
             <a 
-              href="mailto:payal.shah@atelier2901.com"
+              href="mailto:orders@atelier2901.com"
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <Mail className="w-4 h-4" strokeWidth={1.5} />
-              <span className="font-light">payal.shah@atelier2901.com</span>
+              <span className="font-light">orders@atelier2901.com</span>
             </a>
             <a 
               href="https://instagram.com/atelier_2901"
