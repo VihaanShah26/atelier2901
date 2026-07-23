@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import PageLayout from '@/components/atelier/PageLayout';
+import { useImagePreloader } from '@/hooks/useImagePreloader';
 
 export default function AtelierAbout() {
+  useImagePreloader(['/payal.jpeg']);
+
   return (
     <PageLayout>
       <section className="min-h-[100vh] px-6 py-16 lg:px-0 lg:py-0">

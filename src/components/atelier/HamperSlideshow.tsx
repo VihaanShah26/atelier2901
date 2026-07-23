@@ -27,7 +27,7 @@ export default function HamperSlideshow({ title, products, loading, error, showI
         const images = product.images.length ? product.images : [product.img].filter(Boolean);
         return images.map((image, index) => ({
           id: `${product.id}-${index}`,
-          name: product.name || '',
+          name: '',
           image,
         }));
       }),
@@ -102,7 +102,7 @@ export default function HamperSlideshow({ title, products, loading, error, showI
           </p>
           <Link
             to="/contact"
-            className="mt-4 inline-flex items-center justify-center border border-border px-6 py-3 text-xs uppercase tracking-widest font-light text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+            className="get-in-touch-button mt-4 inline-flex items-center justify-center border border-border px-6 py-3 text-xs uppercase tracking-widest font-light text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
           >
             Get in touch
           </Link>
@@ -134,7 +134,7 @@ export default function HamperSlideshow({ title, products, loading, error, showI
             <button
               type="button"
               onClick={showPrevious}
-              className="image-nav-button absolute left-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center bg-background/80 text-foreground/80 transition-colors hover:text-foreground"
+              className="absolute left-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center bg-background/80 text-foreground/80 transition-colors hover:text-foreground"
               aria-label="Previous image"
             >
               <ChevronLeft className="h-6 w-6" strokeWidth={1.5} />
@@ -142,7 +142,7 @@ export default function HamperSlideshow({ title, products, loading, error, showI
             <button
               type="button"
               onClick={showNext}
-              className="image-nav-button absolute right-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center bg-background/80 text-foreground/80 transition-colors hover:text-foreground"
+              className="absolute right-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center bg-background/80 text-foreground/80 transition-colors hover:text-foreground"
               aria-label="Next image"
             >
               <ChevronRight className="h-6 w-6" strokeWidth={1.5} />

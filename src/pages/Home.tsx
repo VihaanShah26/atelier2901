@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import PageLayout from '@/components/atelier/PageLayout';
 import CategoryTile from '@/components/atelier/CategoryTile';
 import TextType from '@/components/atelier/TextType';
+import { useImagePreloader } from '@/hooks/useImagePreloader';
 
 const categories = [
   { title: 'Stationery', path: '/stationery' },
@@ -22,6 +23,7 @@ const heroImages = [
 
 export default function Home() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  useImagePreloader(heroImages);
 
   useEffect(() => {
     if (heroImages.length <= 1) return;

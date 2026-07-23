@@ -139,7 +139,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
       <div 
         ref={modalRef}
         tabIndex={-1}
-        className="relative bg-background max-w-2xl w-full h-[70vh] overflow-hidden animate-scale-in"
+        className="relative bg-background max-w-2xl w-full max-h-[85vh] overflow-y-auto animate-scale-in md:h-[70vh] md:overflow-hidden"
       >
         {/* Close Button */}
         <button
@@ -150,9 +150,9 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
           <X className="w-5 h-5" strokeWidth={1.5} />
         </button>
 
-        <div className="grid h-full md:grid-cols-2 gap-0 md:items-stretch">
+        <div className="grid md:h-full md:grid-cols-2 gap-0 md:items-stretch">
           {/* Image */}
-          <div className="relative bg-muted md:h-full">
+          <div className="relative aspect-square bg-muted md:aspect-auto md:h-full">
             {selectedImage && (
               <img
                 src={selectedImage}
@@ -191,7 +191,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
           </div>
 
           {/* Details */}
-          <div className="p-8 flex flex-col justify-start h-full overflow-y-auto min-h-0">
+          <div className="p-8 flex flex-col justify-start min-h-0 md:h-full md:overflow-y-auto">
             <h2 className="font-sans text-2xl lg:text-3xl mb-8">
               {displayName}
             </h2>

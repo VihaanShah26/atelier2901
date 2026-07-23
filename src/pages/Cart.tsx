@@ -5,6 +5,7 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import PageLayout from '@/components/atelier/PageLayout';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
+import { useImagePreloader } from '@/hooks/useImagePreloader';
 import { postJSON } from '@/lib/api';
 import { db } from '@/lib/firebase';
 
@@ -12,6 +13,7 @@ export default function Cart() {
   const { toast } = useToast();
   const formatRs = (value: number) => `Rs. ${value.toLocaleString('en-IN')}`;
   const { items, updateQuantity, removeFromCart, clearCart, totalItems, subtotal } = useCart();
+  useImagePreloader(items.map((item) => item.img));
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
