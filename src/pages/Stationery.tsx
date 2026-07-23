@@ -24,7 +24,7 @@ const STATIONERY_CATEGORIES = {
   hampers: {
     label: 'Stationery Hampers',
     collection: 'stationery_hampers',
-    description: 'Curated exclusively for you.',
+    description: "Every thoughtful gesture begins with beautiful stationery. At ATELIER 2901, we curate bespoke stationery hampers featuring a personalized selection of note cards, letterheads, envelopes, gift tags, money holders, and more. Thoughtfully designed around your lifestyle and gifting needs, each collection is as unique as the person it is created for. \n\nLet's curate yours together.",
   },
 } as const;
 
@@ -49,7 +49,7 @@ export default function Stationery() {
   if (isHamperCollection) {
     return (
       <PageLayout>
-        <HamperSlideshow title={label} products={products} loading={loading} error={error} />
+        <HamperSlideshow title={label} products={products} loading={loading} error={error} description={description} />
       </PageLayout>
     );
   }

@@ -1,26 +1,16 @@
 import { useMemo } from 'react';
 import PageLayout from '@/components/atelier/PageLayout';
-import ProductGrid from '@/components/atelier/ProductGrid';
+import HamperSlideshow from '@/components/atelier/HamperSlideshow';
 import { useProducts } from '@/hooks/useProducts';
 
 export default function Invitations() {
   const collections = useMemo(() => ['invitations'], []);
   const { products, loading, error } = useProducts(collections);
+  const description = "Every celebration begins with an invitation. At ATELIER 2901, we create bespoke invitations that set the tone for life's most memorable occasions. From intimate gatherings and milestone celebrations to weddings, baby announcements, and everything in between, each invitation is thoughtfully designed to reflect your unique story and style. \n\nLet's create the perfect beginning \nto your celebration."; 
 
   return (
     <PageLayout>
-      <section className="max-w-7xl mx-auto px-6 lg:px-12 py-16 lg:py-16">
-        <div className="mb-8 lg:mb-8">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2 font-light animate-fade-in opacity-0">
-            Collection
-          </p>
-          <h1 className="font-sans md:text-2xl lg:text-3xl animate-fade-in opacity-0" style={{ animationDelay: '100ms' }}>
-            Invitations
-          </h1>
-        </div>
-        
-        <ProductGrid products={products} loading={loading} error={error} />
-      </section>
+      <HamperSlideshow title="Invitations" products={products} loading={loading} error={error} description={description} />
     </PageLayout>
   );
 }
