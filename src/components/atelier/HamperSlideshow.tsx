@@ -9,6 +9,7 @@ interface HamperSlideshowProps {
   loading: boolean;
   error: string | null;
   showImageName?: boolean;
+  description?: string;
 }
 
 type Slide = {
@@ -17,7 +18,7 @@ type Slide = {
   image: string;
 };
 
-export default function HamperSlideshow({ title, products, loading, error, showImageName = true }: HamperSlideshowProps) {
+export default function HamperSlideshow({ title, products, loading, error, showImageName = true, description = '' }: HamperSlideshowProps) {
   const [activeIndex, setActiveIndex] = useState(0);
 
   const slides = useMemo<Slide[]>(
@@ -96,8 +97,8 @@ export default function HamperSlideshow({ title, products, loading, error, showI
           <h1 className="font-sans md:text-2xl lg:text-3xl">
             {title}
           </h1>
-          <p className="mt-2 font-light text-muted-foreground">
-            Curated exclusively for you.
+          <p className="mt-2 font-light text-muted-foreground" style={{ whiteSpace: 'pre-line' }}>
+            {description || 'Curated exclusively for you.'}
           </p>
           <Link
             to="/contact"
