@@ -134,7 +134,7 @@ export default function HamperSlideshow({ title, products, loading, error, showI
             <button
               type="button"
               onClick={showPrevious}
-              className="absolute left-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center bg-background/80 text-foreground/80 transition-colors hover:text-foreground"
+              className="image-nav-button absolute left-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center bg-background/80 text-foreground/80 transition-colors hover:text-foreground"
               aria-label="Previous image"
             >
               <ChevronLeft className="h-6 w-6" strokeWidth={1.5} />
@@ -142,7 +142,7 @@ export default function HamperSlideshow({ title, products, loading, error, showI
             <button
               type="button"
               onClick={showNext}
-              className="absolute right-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center bg-background/80 text-foreground/80 transition-colors hover:text-foreground"
+              className="image-nav-button absolute right-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center bg-background/80 text-foreground/80 transition-colors hover:text-foreground"
               aria-label="Next image"
             >
               <ChevronRight className="h-6 w-6" strokeWidth={1.5} />

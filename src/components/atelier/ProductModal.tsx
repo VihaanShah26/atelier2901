@@ -169,7 +169,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                       index === 0 ? productImages.length - 1 : index - 1
                     )
                   }
-                  className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center bg-background/80 text-foreground/80 transition-colors hover:text-foreground"
+                  className="image-nav-button absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center bg-background/80 text-foreground/80 transition-colors hover:text-foreground"
                   aria-label="Previous image"
                 >
                   <ChevronLeft className="h-5 w-5" strokeWidth={1.5} />
@@ -181,7 +181,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                       index === productImages.length - 1 ? 0 : index + 1
                     )
                   }
-                  className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center bg-background/80 text-foreground/80 transition-colors hover:text-foreground"
+                  className="image-nav-button absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center bg-background/80 text-foreground/80 transition-colors hover:text-foreground"
                   aria-label="Next image"
                 >
                   <ChevronRight className="h-5 w-5" strokeWidth={1.5} />
