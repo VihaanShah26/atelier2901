@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import PageLayout from '@/components/atelier/PageLayout';
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import { collection, doc, getDocs, updateDoc } from 'firebase/firestore';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 type SizeOption = { label: string; price: number | ''; personalizedPrice?: number | '' | null };
 type FieldType = 'string' | 'number' | 'boolean' | 'json';
@@ -57,6 +58,7 @@ export default function Admin() {
   const [drafts, setDrafts] = useState<Record<string, Record<string, any>>>({});
   const [fieldTypes, setFieldTypes] = useState<Record<string, Record<string, FieldType>>>({});
   const [statusByItem, setStatusByItem] = useState<Record<string, ItemStatus>>({});
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     if (!adminPassword) return;
@@ -182,6 +184,48 @@ export default function Admin() {
       ...prev,
       [itemKey]: { status: 'idle' },
     }));
+  };
+
+  const getStorageFolder = (collectionId: string) => {
+    if (collectionId.startsWith('stationery')) return 'stationery';
+    if (collectionId.startsWith('gifting')) return 'gifting';
+    if (collectionId === 'coffeetablebooks') return 'coffeetablebooks';
+    if (collectionId === 'invitations') return 'invitations';
+    if (collectionId === 'hampers') return 'hampers';
+    return collectionId;
+  };
+
+  const handleImageUploadClick = (itemKey: string) => {
+    fileInputRefs.current[itemKey]?.click();
+  };
+
+  const handleImageFileChange = async (collectionId: string, itemId: string, file: File | null) => {
+    if (!file) return;
+
+    const itemKey = `${collectionId}/${itemId}`;
+    setStatusByItem((prev) => ({ ...prev, [itemKey]: { status: 'saving' } }));
+
+    try {
+      const folder = getStorageFolder(collectionId);
+      const safeName = file.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '');
+      const uploadPath = `${folder}/${Date.now()}-${safeName}`;
+      const storageRef = ref(storage, uploadPath);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      const existing = String(drafts[itemKey]?.img ?? '').trim();
+      const nextImg = existing ? `${existing}\n${url}` : url;
+      updateDraft(itemKey, 'img', nextImg);
+      await updateDoc(doc(db, collectionId, itemId), { img: nextImg });
+      setStatusByItem((prev) => ({
+        ...prev,
+        [itemKey]: { status: 'saved', message: 'Image uploaded.' },
+      }));
+    } catch (error) {
+      setStatusByItem((prev) => ({
+        ...prev,
+        [itemKey]: { status: 'error', message: 'Image upload failed.' },
+      }));
+    }
   };
 
   const updateSize = (itemKey: string, index: number, field: 'label' | 'price' | 'personalizedPrice', value: string) => {
@@ -419,6 +463,27 @@ export default function Admin() {
                                 className="w-full border border-border bg-background px-3 py-2 text-sm font-light text-foreground/80 focus:outline-none focus:ring-1 focus:ring-foreground/20"
                                 rows={3}
                               />
+                              <div className="mt-3 flex items-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => handleImageUploadClick(itemKey)}
+                                  className="border border-border px-4 py-2 text-xs uppercase tracking-widest font-light hover:border-foreground/40 transition-colors"
+                                >
+                                  Upload image
+                                </button>
+                                <input
+                                  ref={(node) => {
+                                    fileInputRefs.current[itemKey] = node;
+                                  }}
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(event) => {
+                                    void handleImageFileChange(collectionInfo.id, item.id, event.target.files?.[0] ?? null);
+                                    event.currentTarget.value = '';
+                                  }}
+                                />
+                              </div>
                             </div>
                             <div>
                               <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-3 font-light">
