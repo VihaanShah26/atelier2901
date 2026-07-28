@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import PageLayout from '@/components/atelier/PageLayout';
 import { db, storage } from '@/lib/firebase';
-import { collection, doc, getDocs, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 type SizeOption = { label: string; price: number | ''; personalizedPrice?: number | '' | null };
@@ -15,6 +15,17 @@ type AdminItem = {
 type ItemStatus = {
   status: 'idle' | 'saving' | 'saved' | 'error';
   message?: string;
+};
+
+type NewProductDraft = {
+  collectionId: string;
+  insertAfterId: string;
+  name: string;
+  img: string;
+  price: string;
+  personalizedPrice: string;
+  sizes: SizeOption[];
+  goldFoil: boolean;
 };
 
 const COLLECTIONS = [
@@ -38,6 +49,17 @@ const KNOWN_OPTION_FIELD_LABELS = Object.fromEntries(
   KNOWN_OPTION_FIELDS.map((field) => [field.key, field.label])
 );
 
+const DEFAULT_NEW_PRODUCT: NewProductDraft = {
+  collectionId: COLLECTIONS[0].id,
+  insertAfterId: '',
+  name: '',
+  img: '',
+  price: '',
+  personalizedPrice: '',
+  sizes: [],
+  goldFoil: false,
+};
+
 const getFieldType = (value: any): FieldType => {
   if (value === null || value === undefined) return 'string';
   if (Array.isArray(value) || typeof value === 'object') return 'json';
@@ -59,6 +81,9 @@ export default function Admin() {
   const [fieldTypes, setFieldTypes] = useState<Record<string, Record<string, FieldType>>>({});
   const [statusByItem, setStatusByItem] = useState<Record<string, ItemStatus>>({});
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const newProductFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [newProductDraft, setNewProductDraft] = useState<NewProductDraft>(DEFAULT_NEW_PRODUCT);
+  const [newProductStatus, setNewProductStatus] = useState<ItemStatus>({ status: 'idle' });
 
   useEffect(() => {
     if (!adminPassword) return;
@@ -186,6 +211,46 @@ export default function Admin() {
     }));
   };
 
+  const updateNewProductDraft = (key: keyof NewProductDraft, value: string | boolean | SizeOption[]) => {
+    setNewProductDraft((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+    setNewProductStatus({ status: 'idle' });
+  };
+
+  const updateNewProductSize = (index: number, field: keyof SizeOption, value: string) => {
+    setNewProductDraft((prev) => {
+      const sizes = [...prev.sizes];
+      const current = sizes[index] || { label: '', price: '', personalizedPrice: '' };
+      sizes[index] = {
+        ...current,
+        [field]: field === 'label' ? value : value === '' ? '' : Number(value),
+      };
+      return {
+        ...prev,
+        sizes,
+      };
+    });
+    setNewProductStatus({ status: 'idle' });
+  };
+
+  const addNewProductSize = () => {
+    setNewProductDraft((prev) => ({
+      ...prev,
+      sizes: [...prev.sizes, { label: '', price: '', personalizedPrice: '' }],
+    }));
+    setNewProductStatus({ status: 'idle' });
+  };
+
+  const removeNewProductSize = (index: number) => {
+    setNewProductDraft((prev) => ({
+      ...prev,
+      sizes: prev.sizes.filter((_, currentIndex) => currentIndex !== index),
+    }));
+    setNewProductStatus({ status: 'idle' });
+  };
+
   const getStorageFolder = (collectionId: string) => {
     if (collectionId.startsWith('stationery')) return 'stationery';
     if (collectionId.startsWith('gifting')) return 'gifting';
@@ -193,6 +258,140 @@ export default function Admin() {
     if (collectionId === 'invitations') return 'invitations';
     if (collectionId === 'hampers') return 'hampers';
     return collectionId;
+  };
+
+  const incrementStringId = (value: string) => {
+    const match = value.match(/^(.*?)(\d+)$/);
+    if (!match) {
+      return `${value}-1`;
+    }
+
+    const prefix = match[1];
+    const numericPart = match[2];
+    const nextNumber = String(Number(numericPart) + 1).padStart(numericPart.length, '0');
+    return `${prefix}${nextNumber}`;
+  };
+
+  const getNextProductId = (collectionId: string) => {
+    const items = itemsByCollection[collectionId] || [];
+    if (items.length === 0) return '1';
+
+    const sorted = [...items].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+    return incrementStringId(sorted[sorted.length - 1]?.id || '1');
+  };
+
+  const getInsertedProductId = (collectionId: string, insertAfterId: string) => {
+    const items = itemsByCollection[collectionId] || [];
+    const sorted = [...items].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+    const index = sorted.findIndex((item) => item.id === insertAfterId);
+    if (index < 0) {
+      return getNextProductId(collectionId);
+    }
+
+    const currentId = sorted[index].id;
+    const nextId = sorted[index + 1]?.id;
+
+    if (!nextId) {
+      return incrementStringId(currentId);
+    }
+
+    const base = `${currentId}.5`;
+    if (base.localeCompare(nextId, undefined, { numeric: true }) < 0) {
+      return base;
+    }
+
+    let candidate = `${currentId}.`;
+    while (`${candidate}5`.localeCompare(nextId, undefined, { numeric: true }) >= 0) {
+      candidate += '5';
+    }
+    return `${candidate}5`;
+  };
+
+  const handleNewProductImageUploadClick = () => {
+    newProductFileInputRef.current?.click();
+  };
+
+  const handleNewProductImageFileChange = async (file: File | null) => {
+    if (!file) return;
+
+    setNewProductStatus({ status: 'saving' });
+
+    try {
+      const folder = getStorageFolder(newProductDraft.collectionId);
+      const safeName = file.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '');
+      const uploadPath = `${folder}/${Date.now()}-${safeName}`;
+      const storageRef = ref(storage, uploadPath);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      const nextImg = newProductDraft.img.trim() ? `${newProductDraft.img.trim()}\n${url}` : url;
+      updateNewProductDraft('img', nextImg);
+      setNewProductStatus({ status: 'saved', message: 'Image uploaded.' });
+    } catch {
+      setNewProductStatus({ status: 'error', message: 'Image upload failed.' });
+    }
+  };
+
+  const handleCreateProduct = async () => {
+    const collectionId = newProductDraft.collectionId;
+    const insertAfterId = newProductDraft.insertAfterId;
+    const name = newProductDraft.name.trim();
+    const img = newProductDraft.img.trim();
+
+    if (!collectionId) {
+      setNewProductStatus({ status: 'error', message: 'Choose a collection.' });
+      return;
+    }
+    if (!name) {
+      setNewProductStatus({ status: 'error', message: 'Name is required.' });
+      return;
+    }
+
+    setNewProductStatus({ status: 'saving' });
+
+    try {
+      const newId = insertAfterId
+        ? getInsertedProductId(collectionId, insertAfterId)
+        : getNextProductId(collectionId);
+      const priceValue = newProductDraft.price === '' ? null : Number(newProductDraft.price);
+      const personalizedValue =
+        newProductDraft.personalizedPrice === '' ? null : Number(newProductDraft.personalizedPrice);
+      const sizes = newProductDraft.sizes
+        .map((size: SizeOption) => {
+          const label = String(size.label ?? '').trim();
+          const priceValue = size.price === '' ? null : Number(size.price);
+          const personalizedValue =
+            size.personalizedPrice === '' || size.personalizedPrice === null || size.personalizedPrice === undefined
+              ? null
+              : Number(size.personalizedPrice);
+
+          return {
+            label,
+            price: Number.isFinite(priceValue) ? priceValue : null,
+            personalizedPrice: Number.isFinite(personalizedValue) ? personalizedValue : null,
+          };
+        })
+        .filter((size: SizeOption) => size.label && Number.isFinite(size.price));
+
+      const payload: Record<string, any> = {
+        name,
+        img,
+        price: Number.isFinite(priceValue) ? priceValue : null,
+        personalizedPrice: Number.isFinite(personalizedValue) ? personalizedValue : null,
+        sizes,
+        goldFoil: newProductDraft.goldFoil,
+      };
+
+      await setDoc(doc(db, collectionId, newId), payload);
+
+      setItemsByCollection((prev) => ({
+        ...prev,
+        [collectionId]: [...(prev[collectionId] || []), { id: newId, data: payload }],
+      }));
+      setNewProductDraft({ ...DEFAULT_NEW_PRODUCT, collectionId });
+      setNewProductStatus({ status: 'saved', message: `Created product ${newId}.` });
+    } catch {
+      setNewProductStatus({ status: 'error', message: 'Create failed. Check the fields and try again.' });
+    }
   };
 
   const handleImageUploadClick = (itemKey: string) => {
@@ -395,6 +594,211 @@ export default function Admin() {
                 Admin
               </p>
               <h1 className="font-sans text-3xl md:text-4xl">Catalog Manager</h1>
+            </div>
+
+            <div className="mb-16 border border-border p-6 space-y-6">
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="text-lg font-sans">Add New Product</h2>
+                <button
+                  type="button"
+                  onClick={handleCreateProduct}
+                  className="border border-border px-4 py-2 text-xs uppercase tracking-widest font-light hover:border-foreground/40 transition-colors"
+                >
+                  {newProductStatus.status === 'saving' ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+
+              {newProductStatus.status === 'error' && (
+                <div className="border border-red-200 bg-red-50/60 text-red-800 px-4 py-2 text-sm font-light">
+                  {newProductStatus.message || 'Create failed.'}
+                </div>
+              )}
+              {newProductStatus.status === 'saved' && (
+                <div className="border border-emerald-200 bg-emerald-50/60 text-emerald-800 px-4 py-2 text-sm font-light">
+                  {newProductStatus.message || 'Created.'}
+                </div>
+              )}
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-3 font-light">
+                    Category
+                  </label>
+                  <select
+                    value={newProductDraft.collectionId}
+                    onChange={(event) => {
+                      setNewProductDraft((prev) => ({
+                        ...prev,
+                        collectionId: event.target.value,
+                        insertAfterId: '',
+                      }));
+                      setNewProductStatus({ status: 'idle' });
+                    }}
+                    className="w-full border border-border bg-background px-3 py-2 text-sm font-light text-foreground/80 focus:outline-none focus:ring-1 focus:ring-foreground/20"
+                  >
+                    {COLLECTIONS.map((collectionInfo) => (
+                      <option key={collectionInfo.id} value={collectionInfo.id}>
+                        {collectionInfo.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-3 font-light">
+                    Add After
+                  </label>
+                  <select
+                    value={newProductDraft.insertAfterId}
+                    onChange={(event) => updateNewProductDraft('insertAfterId', event.target.value)}
+                    className="w-full border border-border bg-background px-3 py-2 text-sm font-light text-foreground/80 focus:outline-none focus:ring-1 focus:ring-foreground/20"
+                  >
+                    <option value="">At the end</option>
+                    {(itemsByCollection[newProductDraft.collectionId] || [])
+                      .slice()
+                      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
+                      .map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.id} - {String(item.data?.name ?? '').trim() || 'Untitled'}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-3 font-light">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newProductDraft.name}
+                    onChange={(event) => updateNewProductDraft('name', event.target.value)}
+                    className="w-full bg-transparent border-b border-border py-2 font-light focus:outline-none focus:border-foreground transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-3 font-light">
+                    Price
+                  </label>
+                  <input
+                    type="number"
+                    value={newProductDraft.price}
+                    onChange={(event) => updateNewProductDraft('price', event.target.value)}
+                    className="w-full bg-transparent border-b border-border py-2 font-light focus:outline-none focus:border-foreground transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-3 font-light">
+                    Personalized Price
+                  </label>
+                  <input
+                    type="number"
+                    value={newProductDraft.personalizedPrice}
+                    onChange={(event) => updateNewProductDraft('personalizedPrice', event.target.value)}
+                    className="w-full bg-transparent border-b border-border py-2 font-light focus:outline-none focus:border-foreground transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-3 font-light">
+                    Images URLS
+                  </label>
+                  <textarea
+                    value={newProductDraft.img}
+                    onChange={(event) => updateNewProductDraft('img', event.target.value)}
+                    className="w-full border border-border bg-background px-3 py-2 text-sm font-light text-foreground/80 focus:outline-none focus:ring-1 focus:ring-foreground/20"
+                    rows={4}
+                  />
+                  <div className="mt-3 flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleNewProductImageUploadClick}
+                      className="border border-border px-4 py-2 text-xs uppercase tracking-widest font-light hover:border-foreground/40 transition-colors"
+                    >
+                      Upload image
+                    </button>
+                    <input
+                      ref={newProductFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        void handleNewProductImageFileChange(event.target.files?.[0] ?? null);
+                        event.currentTarget.value = '';
+                      }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-3 font-light">
+                    Gold Foil
+                  </label>
+                  <input
+                    type="checkbox"
+                    checked={newProductDraft.goldFoil}
+                    onChange={(event) => updateNewProductDraft('goldFoil', event.target.checked)}
+                    className="h-4 w-4"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground font-light">
+                    Sizes
+                  </p>
+                  <button
+                    type="button"
+                    onClick={addNewProductSize}
+                    className="border border-border px-3 py-1 text-xs uppercase tracking-widest font-light hover:border-foreground/40 transition-colors"
+                  >
+                    Add size
+                  </button>
+                </div>
+                <p className="text-sm font-light text-muted-foreground/80">
+                  Optional. Leave empty if this product does not need size variants.
+                </p>
+                {newProductDraft.sizes.length === 0 ? (
+                  <div className="border border-dashed border-border px-4 py-5 text-sm font-light text-muted-foreground">
+                    No sizes added.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {newProductDraft.sizes.map((size, index) => (
+                      <div
+                        key={`new-product-size-${index}`}
+                        className="grid grid-cols-1 md:grid-cols-[1fr_140px_180px_auto] gap-3 items-center"
+                      >
+                        <input
+                          type="text"
+                          value={size.label}
+                          onChange={(event) => updateNewProductSize(index, 'label', event.target.value)}
+                          placeholder="Size label"
+                          className="w-full bg-transparent border-b border-border py-2 font-light focus:outline-none focus:border-foreground transition-colors"
+                        />
+                        <input
+                          type="number"
+                          value={Number.isFinite(size.price) ? size.price : ''}
+                          onChange={(event) => updateNewProductSize(index, 'price', event.target.value)}
+                          placeholder="Price"
+                          className="w-full bg-transparent border-b border-border py-2 font-light focus:outline-none focus:border-foreground transition-colors"
+                        />
+                        <input
+                          type="number"
+                          value={Number.isFinite(size.personalizedPrice) ? size.personalizedPrice : ''}
+                          onChange={(event) => updateNewProductSize(index, 'personalizedPrice', event.target.value)}
+                          placeholder="Personalized price"
+                          className="w-full bg-transparent border-b border-border py-2 font-light focus:outline-none focus:border-foreground transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeNewProductSize(index)}
+                          className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors md:justify-self-end"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-16">
