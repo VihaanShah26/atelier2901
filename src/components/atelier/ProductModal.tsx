@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, X, Minus, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Product } from '@/hooks/useProducts';
-import { useCart } from '@/contexts/CartContext';
+import { PersonalizationDetail, useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProductModalProps {
@@ -12,13 +12,24 @@ interface ProductModalProps {
 
 export default function ProductModal({ product, onClose }: ProductModalProps) {
   const formatRs = (value: number) => `Rs. ${value.toLocaleString('en-IN')}`;
+  const resolveGreeting = (option: string, custom: string) =>
+    option === 'No Greeting'
+      ? ''
+      : option === 'Custom Greeting'
+        ? custom.trim().slice(0, 35)
+        : option;
   const [quantity, setQuantity] = useState(1);
   const [personalize, setPersonalize] = useState<'yes' | 'no'>('no');
   const [goldFoil, setGoldFoil] = useState<'yes' | 'no'>('no');
+  const [goldFoilPrompt, setGoldFoilPrompt] = useState<'select' | 'decrease' | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [greetingOption, setGreetingOption] = useState('No Greeting');
   const [customGreeting, setCustomGreeting] = useState('');
   const [personalizationName, setPersonalizationName] = useState('');
+  const [samePersonalizationForAll, setSamePersonalizationForAll] = useState(true);
+  const [additionalPersonalizations, setAdditionalPersonalizations] = useState<
+    Record<number, { greetingOption: string; customGreeting: string; name: string }>
+  >({});
   const [initials, setInitials] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
   const { addToCart } = useCart();
@@ -45,7 +56,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
   const stationeryBasePrice = product.price ?? 1900;
   const stationeryPersonalizedPrice = product.personalizedPrice ?? 2200;
   const giftingPrice = product.price ?? 2000;
-  const goldFoilPrice = supportsGoldFoil && goldFoil === 'yes' ? 300 : 0;
+  const goldFoilPrice = supportsGoldFoil && goldFoil === 'yes' ? product.category === 'stationery_money' ? 1000 : 600 : 0;
   const baseResolvedPrice = sizeOptions.length
     ? effectivePersonalize === 'yes'
       ? selectedSizeOption?.personalizedPrice ?? selectedSizeOption?.price ?? null
@@ -60,17 +71,37 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
   const selectedImage = productImages[selectedImageIndex] || productImages[0] || '';
   const greetingValue =
     isStationeryProduct && effectivePersonalize === 'yes'
-      ? greetingOption === 'No Greeting'
-        ? ''
-        : greetingOption === 'Custom Greeting'
-          ? customGreeting.trim().slice(0, 35)
-          : greetingOption
+      ? resolveGreeting(greetingOption, customGreeting)
       : null;
   const nameValue =
     isStationeryProduct && effectivePersonalize === 'yes'
       ? personalizationName.trim() || null
       : null;
   const initialsValue = isGiftingTravel ? initials.trim().slice(0, 6) || null : null;
+  const personalizationDetails: PersonalizationDetail[] =
+    isStationeryProduct && effectivePersonalize === 'yes'
+      ? Array.from({ length: quantity }, (_, index) => {
+          const set = index + 1;
+          const detail =
+            set === 1 || samePersonalizationForAll
+              ? {
+                  greeting: greetingValue,
+                  name: nameValue,
+                }
+              : {
+                  greeting: resolveGreeting(
+                    additionalPersonalizations[set]?.greetingOption ?? 'No Greeting',
+                    additionalPersonalizations[set]?.customGreeting ?? ''
+                  ),
+                  name: additionalPersonalizations[set]?.name.trim() || null,
+                };
+          return {
+            set,
+            greeting: detail.greeting || null,
+            name: detail.name,
+          };
+        })
+      : [];
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -100,7 +131,16 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
   useEffect(() => {
     setSelectedImageIndex(0);
     setGoldFoil('no');
+    setGoldFoilPrompt(null);
+    setSamePersonalizationForAll(true);
+    setAdditionalPersonalizations({});
   }, [product.id]);
+
+  useEffect(() => {
+    if (quantity <= 1) {
+      setSamePersonalizationForAll(true);
+    }
+  }, [quantity]);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -108,8 +148,58 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
     }
   };
 
+  const handleGoldFoilYes = () => {
+    if (quantity < 2) {
+      setGoldFoilPrompt('select');
+      return;
+    }
+    setGoldFoil('yes');
+  };
+
+  const handleGoldFoilCancel = () => {
+    setGoldFoil('no');
+    if (goldFoilPrompt === 'decrease') {
+      setQuantity(1);
+    }
+    setGoldFoilPrompt(null);
+  };
+
+  const handleGoldFoilMinimum = () => {
+    setQuantity(2);
+    setGoldFoil('yes');
+    setGoldFoilPrompt(null);
+  };
+
+  const handleDecreaseQuantity = () => {
+    if (goldFoil === 'yes' && quantity <= 2) {
+      setGoldFoilPrompt('decrease');
+      return;
+    }
+    setQuantity(Math.max(1, quantity - 1));
+  };
+
+  const updateAdditionalPersonalization = (
+    set: number,
+    field: 'greetingOption' | 'customGreeting' | 'name',
+    value: string
+  ) => {
+    setAdditionalPersonalizations((prev) => ({
+      ...prev,
+      [set]: {
+        greetingOption: prev[set]?.greetingOption ?? 'No Greeting',
+        customGreeting: prev[set]?.customGreeting ?? '',
+        name: prev[set]?.name ?? '',
+        [field]: value,
+      },
+    }));
+  };
+
   const handleAddToCart = () => {
     if (isInquiryOnly) return;
+    if (goldFoil === 'yes' && quantity < 2) {
+      setGoldFoilPrompt('select');
+      return;
+    }
     addToCart({
       id: product.id,
       name: displayName,
@@ -120,6 +210,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
       price: resolvedPrice ?? null,
       greeting: greetingValue,
       personalizationName: nameValue,
+      personalizationDetails,
       initials: initialsValue,
       size: selectedSizeOption?.label ?? null,
     }, quantity);
@@ -149,6 +240,33 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
         >
           <X className="w-5 h-5" strokeWidth={1.5} />
         </button>
+
+        {goldFoilPrompt && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-foreground/20 px-6">
+            <div className="w-full max-w-sm border border-border bg-background p-6 shadow-elegant">
+              <h3 className="font-sans text-xl mb-3">Minimum quantity</h3>
+              <p className="text-sm font-light text-muted-foreground mb-6">
+                Gold foil requires a minimum quantity of 2. Please cancel gold foil or use quantity 2.
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleGoldFoilCancel}
+                  className="flex-1 border border-border px-4 py-3 text-xs uppercase tracking-widest font-light text-muted-foreground hover:border-foreground/40 hover:text-foreground transition-colors"
+                >
+                  Cancel gold foil
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGoldFoilMinimum}
+                  className="flex-1 bg-foreground px-4 py-3 text-xs uppercase tracking-widest font-light text-background hover:bg-foreground/90 transition-colors"
+                >
+                  Use quantity 2
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid md:h-full md:grid-cols-2 gap-0 md:items-stretch">
           {/* Image */}
@@ -219,7 +337,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                   </p>
                   <div className="flex items-center gap-4">
                     <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      onClick={handleDecreaseQuantity}
                       className="w-10 h-10 border border-border flex items-center justify-center hover:border-foreground transition-colors"
                       aria-label="Decrease quantity"
                     >
@@ -311,7 +429,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                           name="goldFoil"
                           value="yes"
                           checked={goldFoil === 'yes'}
-                          onChange={() => setGoldFoil('yes')}
+                          onChange={handleGoldFoilYes}
                           className="h-4 w-4 accent-foreground"
                         />
                         Yes
@@ -392,6 +510,106 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                     />
                   </div>
                 )}
+
+                {isStationeryProduct && effectivePersonalize === 'yes' && quantity > 1 && (
+                  <div className="mb-8">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-light">
+                      Use these details for each set?
+                    </p>
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-2 text-sm font-light text-foreground/80">
+                        <input
+                          type="radio"
+                          name="samePersonalizationForAll"
+                          checked={samePersonalizationForAll}
+                          onChange={() => setSamePersonalizationForAll(true)}
+                          className="h-4 w-4 accent-foreground"
+                        />
+                        Yes
+                      </label>
+                      <label className="flex items-center gap-2 text-sm font-light text-foreground/80">
+                        <input
+                          type="radio"
+                          name="samePersonalizationForAll"
+                          checked={!samePersonalizationForAll}
+                          onChange={() => setSamePersonalizationForAll(false)}
+                          className="h-4 w-4 accent-foreground"
+                        />
+                        No
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {isStationeryProduct &&
+                  effectivePersonalize === 'yes' &&
+                  quantity > 1 &&
+                  !samePersonalizationForAll && (
+                    <div className="mb-8 space-y-8">
+                      {Array.from({ length: quantity - 1 }, (_, index) => {
+                        const set = index + 2;
+                        const detail = additionalPersonalizations[set] ?? {
+                          greetingOption: 'No Greeting',
+                          customGreeting: '',
+                          name: '',
+                        };
+
+                        return (
+                          <div key={`personalization-set-${set}`} className="space-y-6">
+                            <p className="text-xs uppercase tracking-wider text-muted-foreground mb-4 font-light">
+                              Set {set} details
+                            </p>
+                            <div className="space-y-4">
+                              <div>
+                                <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-light">
+                                  Greeting
+                                </p>
+                                <select
+                                  value={detail.greetingOption}
+                                  onChange={(event) =>
+                                    updateAdditionalPersonalization(set, 'greetingOption', event.target.value)
+                                  }
+                                  className="w-full border border-border bg-background px-3 py-2 text-sm font-light text-foreground/80 focus:outline-none focus:ring-1 focus:ring-foreground/20"
+                                >
+                                  <option value="With Love">With Love</option>
+                                  <option value="Best Wishes">Best Wishes</option>
+                                  <option value="Love and Happiness">Love and Happiness</option>
+                                  <option value="No Greeting">No Greeting</option>
+                                  <option value="Custom Greeting">Custom Greeting</option>
+                                </select>
+                              </div>
+                              {detail.greetingOption === 'Custom Greeting' && (
+                                <input
+                                  type="text"
+                                  value={detail.customGreeting}
+                                  onChange={(event) =>
+                                    updateAdditionalPersonalization(set, 'customGreeting', event.target.value)
+                                  }
+                                  maxLength={35}
+                                  placeholder="Enter greeting (max 35 characters)"
+                                  className="w-full border border-border bg-background px-3 py-2 text-sm font-light text-foreground/80 focus:outline-none focus:ring-1 focus:ring-foreground/20"
+                                />
+                              )}
+                              <div>
+                                <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-light">
+                                  Name
+                                </p>
+                                <input
+                                  type="text"
+                                  value={detail.name}
+                                  onChange={(event) =>
+                                    updateAdditionalPersonalization(set, 'name', event.target.value)
+                                  }
+                                  placeholder="Enter name"
+                                  className="w-full border border-border bg-background px-3 py-2 text-sm font-light text-foreground/80 focus:outline-none focus:ring-1 focus:ring-foreground/20"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
                 {(isStationeryProduct || isGiftingProduct || sizeOptions.length) && (
                   <div className="mb-8">

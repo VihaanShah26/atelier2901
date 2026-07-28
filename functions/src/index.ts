@@ -89,6 +89,21 @@ function formatOrderItems(items: any[]) {
     if (typeof it?.personalizationName === "string" && it.personalizationName.trim()) {
       details.push(`  Name: ${it.personalizationName.trim()}`);
     }
+    if (Array.isArray(it?.personalizationDetails) && it.personalizationDetails.length > 0) {
+      details.push("  Personalization details:");
+      it.personalizationDetails.forEach((detail: any, detailIndex: number) => {
+        const set = Number(detail?.set) || detailIndex + 1;
+        const greeting =
+          typeof detail?.greeting === "string" && detail.greeting.trim()
+            ? detail.greeting.trim()
+            : "None";
+        const name =
+          typeof detail?.name === "string" && detail.name.trim()
+            ? detail.name.trim()
+            : "None";
+        details.push(`    Set ${set}: Greeting: ${greeting}; Name: ${name}`);
+      });
+    }
     if (typeof it?.initials === "string" && it.initials.trim()) {
       details.push(`  Initials: ${it.initials.trim()}`);
     }

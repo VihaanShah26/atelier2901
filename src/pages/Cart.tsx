@@ -44,6 +44,24 @@ export default function Cart() {
     }
   };
 
+  const handleCartQuantityChange = (item: typeof items[number], nextQuantity: number) => {
+    if (item.goldFoil === 'yes' && nextQuantity < 2) {
+      toast({ description: 'Gold foil requires a minimum quantity of 2.' });
+      return;
+    }
+    updateQuantity(
+      item.id,
+      item.personalize,
+      item.greeting,
+      item.personalizationName,
+      item.personalizationDetails,
+      item.initials,
+      item.size,
+      item.goldFoil,
+      nextQuantity
+    );
+  };
+
   const handlePlaceOrder = async () => {
     const trimmedName = customerName.trim();
     const trimmedEmail = customerEmail.trim();
@@ -168,7 +186,7 @@ export default function Cart() {
         <div className="space-y-0 mb-12">
           {items.map((item, index) => (
             <div 
-              key={`${item.id}-${item.personalize}-${item.greeting ?? 'none'}-${item.personalizationName ?? 'none'}-${item.initials ?? 'none'}-${item.size ?? 'none'}-${item.goldFoil ?? 'none'}`}
+              key={`${item.id}-${item.personalize}-${item.greeting ?? 'none'}-${item.personalizationName ?? 'none'}-${JSON.stringify(item.personalizationDetails)}-${item.initials ?? 'none'}-${item.size ?? 'none'}-${item.goldFoil ?? 'none'}`}
               className="flex flex-col items-start gap-4 py-6 border-b border-border animate-fade-in opacity-0 md:flex-row md:items-center md:gap-6"
               style={{ animationDelay: `${(index + 1) * 100}ms` }}
             >
@@ -197,6 +215,19 @@ export default function Cart() {
                     Name: {item.personalizationName}
                   </p>
                 )}
+                {item.personalizationDetails.length > 1 && (
+                  <div className="mt-2 space-y-1">
+                    {item.personalizationDetails.map((detail) => (
+                      <p
+                        key={`${item.id}-set-${detail.set}`}
+                        className="text-xs uppercase tracking-widest text-muted-foreground font-light"
+                      >
+                        Set {detail.set}: Greeting {detail.greeting || 'None'}
+                        {detail.name ? `, Name ${detail.name}` : ', Name none'}
+                      </p>
+                    ))}
+                  </div>
+                )}
                 {item.initials !== null && (
                   <p className="text-xs uppercase tracking-widest text-muted-foreground font-light mt-2">
                     Initials: {item.initials}
@@ -223,16 +254,7 @@ export default function Cart() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() =>
-                    updateQuantity(
-                      item.id,
-                      item.personalize,
-                      item.greeting,
-                      item.personalizationName,
-                      item.initials,
-                      item.size,
-                      item.goldFoil,
-                      item.quantity - 1
-                    )
+                    handleCartQuantityChange(item, item.quantity - 1)
                   }
                   className="w-8 h-8 border border-border flex items-center justify-center hover:border-foreground transition-colors"
                   aria-label="Decrease quantity"
@@ -242,16 +264,7 @@ export default function Cart() {
                 <span className="w-8 text-center font-light text-sm">{item.quantity}</span>
                 <button
                   onClick={() =>
-                    updateQuantity(
-                      item.id,
-                      item.personalize,
-                      item.greeting,
-                      item.personalizationName,
-                      item.initials,
-                      item.size,
-                      item.goldFoil,
-                      item.quantity + 1
-                    )
+                    handleCartQuantityChange(item, item.quantity + 1)
                   }
                   className="w-8 h-8 border border-border flex items-center justify-center hover:border-foreground transition-colors"
                   aria-label="Increase quantity"
@@ -268,6 +281,7 @@ export default function Cart() {
                     item.personalize,
                     item.greeting,
                     item.personalizationName,
+                    item.personalizationDetails,
                     item.initials,
                     item.size,
                     item.goldFoil
