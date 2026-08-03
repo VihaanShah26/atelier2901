@@ -16,7 +16,7 @@ const GIFTING_CATEGORIES = {
     collection: 'gifting_coasters',
   },
   wine: {
-    label: 'Wine Accessories',
+    label: 'Wine Bags',
     description: 'Elevated accessories designed to accompany memorable pours.',
     collection: 'gifting_wine',
   },

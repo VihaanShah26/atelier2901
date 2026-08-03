@@ -27,7 +27,7 @@ const navLinks = [
     submenu: [
       { name: 'Travel', query: 'travel' },
       { name: 'Coasters', query: 'coasters' },
-      { name: 'Wine', query: 'wine' },
+      { name: 'Wine Bags', query: 'wine' },
     ],
   },
   { name: 'Coffee Table Books', path: '/coffee-table-books' },

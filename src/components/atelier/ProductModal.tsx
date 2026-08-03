@@ -49,7 +49,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
   const supportsGoldFoil = isStationeryPremium || (product.category === 'stationery_money' && product.goldFoil === true);
   const isGiftingTravel = product.category === 'gifting_travel';
   const isGiftingProduct = isGiftingTravel || product.category === 'gifting_coasters' || product.category === 'gifting_wine';
-  const modalSubtitle = product.subtitle?.trim() ||  product.description?.trim() || '';
+  const modalSubtitle = product.subtitle?.trim().toString() ||  product.description?.trim().toString() || "";
   const effectivePersonalize = isGiftingProduct ? 'no' : personalize;
   const sizeOptions = Array.isArray(product.sizes) ? product.sizes : [];
   const selectedSizeOption = sizeOptions.find((size) => size.label === selectedSize) || sizeOptions[0];
@@ -317,7 +317,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
 
             {isInquiryOnly ? (
               <div>
-                <p className="text-sm text-muted-foreground font-light">
+                <p className="text-sm text-muted-foreground font-light" style={{ whiteSpace: 'pre-line' }}>
                   {modalSubtitle}
                 </p>
                 <Link
@@ -354,12 +354,12 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                 </div>
 
                 {modalSubtitle && (
-                  <p className="text-xs text-muted-foreground font-light mb-8">
+                  <p className="text-xs text-muted-foreground font-light mb-8" style={{ whiteSpace: 'pre-line' }}>
                     {modalSubtitle}
                   </p>
                 )}
 
-                {(isStationeryEssential || isStationeryPremium) && (
+                {(isStationeryEssential || isStationeryPremium) && !modalSubtitle && (
                   <p className="text-xs text-muted-foreground font-light mb-8">
                     Each set contains 15 gift cards, 15 gift tags and 15 envelopes
                   </p>
@@ -374,7 +374,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                 {showSizeSelector && (
                   <div className="mb-8">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-light">
-                      Size
+                      Set of
                     </p>
                     <select
                       value={selectedSize}

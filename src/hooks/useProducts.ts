@@ -24,6 +24,12 @@ const parseProductImages = (img: unknown) => {
     .filter(Boolean);
 };
 
+const parseProductText = (value: unknown) => {
+  if (typeof value !== 'string') return null;
+  const parsed = value.replace(/\\n/g, '\n').trim();
+  return parsed || null;
+};
+
 export function useProducts(collectionNames: string[]) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,13 +72,8 @@ export function useProducts(collectionNames: string[]) {
               img: images[0] || '',
               images,
               category: collectionName,
-              subtitle:
-                typeof data.subtitle === 'string'
-                  ? data.subtitle
-                  : typeof data.description === 'string'
-                    ? data.description
-                    : null,
-              description: typeof data.description === 'string' ? data.description : null,
+              subtitle: parseProductText(data.subtitle) ?? parseProductText(data.description),
+              description: parseProductText(data.description),
               price: typeof data.price === 'number' ? data.price : null,
               personalizedPrice: typeof data.personalizedPrice === 'number' ? data.personalizedPrice : null,
               sizes: sizes.length ? sizes : null,
