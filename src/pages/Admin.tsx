@@ -21,6 +21,7 @@ type NewProductDraft = {
   collectionId: string;
   insertAfterId: string;
   name: string;
+  subtitle: string;
   img: string;
   price: string;
   personalizedPrice: string;
@@ -53,6 +54,7 @@ const DEFAULT_NEW_PRODUCT: NewProductDraft = {
   collectionId: COLLECTIONS[0].id,
   insertAfterId: '',
   name: '',
+  subtitle: '',
   img: '',
   price: '',
   personalizedPrice: '',
@@ -335,6 +337,7 @@ export default function Admin() {
     const collectionId = newProductDraft.collectionId;
     const insertAfterId = newProductDraft.insertAfterId;
     const name = newProductDraft.name.trim();
+    const subtitle = newProductDraft.subtitle.trim();
     const img = newProductDraft.img.trim();
 
     if (!collectionId) {
@@ -374,6 +377,7 @@ export default function Admin() {
 
       const payload: Record<string, any> = {
         name,
+        subtitle: subtitle || null,
         img,
         price: Number.isFinite(priceValue) ? priceValue : null,
         personalizedPrice: Number.isFinite(personalizedValue) ? personalizedValue : null,
@@ -672,6 +676,18 @@ export default function Admin() {
                     value={newProductDraft.name}
                     onChange={(event) => updateNewProductDraft('name', event.target.value)}
                     className="w-full bg-transparent border-b border-border py-2 font-light focus:outline-none focus:border-foreground transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-3 font-light">
+                    Subtitle
+                  </label>
+                  <input
+                    type="text"
+                    value={newProductDraft.subtitle}
+                    onChange={(event) => updateNewProductDraft('subtitle', event.target.value)}
+                    className="w-full bg-transparent border-b border-border py-2 font-light focus:outline-none focus:border-foreground transition-colors"
+                    placeholder="Each set contains 15 cards..."
                   />
                 </div>
                 <div>

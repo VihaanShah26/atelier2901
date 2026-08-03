@@ -49,6 +49,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
   const supportsGoldFoil = isStationeryPremium || (product.category === 'stationery_money' && product.goldFoil === true);
   const isGiftingTravel = product.category === 'gifting_travel';
   const isGiftingProduct = isGiftingTravel || product.category === 'gifting_coasters' || product.category === 'gifting_wine';
+  const modalSubtitle = product.subtitle?.trim() ||  product.description?.trim() || '';
   const effectivePersonalize = isGiftingProduct ? 'no' : personalize;
   const sizeOptions = Array.isArray(product.sizes) ? product.sizes : [];
   const selectedSizeOption = sizeOptions.find((size) => size.label === selectedSize) || sizeOptions[0];
@@ -77,7 +78,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
     isStationeryProduct && effectivePersonalize === 'yes'
       ? personalizationName.trim() || null
       : null;
-  const initialsValue = isGiftingTravel ? initials.trim().slice(0, 6) || null : null;
+  const initialsValue = isGiftingTravel ? initials.trim().slice(0, 2) || null : null;
   const personalizationDetails: PersonalizationDetail[] =
     isStationeryProduct && effectivePersonalize === 'yes'
       ? Array.from({ length: quantity }, (_, index) => {
@@ -317,9 +318,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
             {isInquiryOnly ? (
               <div>
                 <p className="text-sm text-muted-foreground font-light">
-                  {isInvitation
-                    ? 'Invitations that reflect your story, style, and occasion. Connect with us to create yours'
-                    : 'Each book is uniquely crafted. Connect with us to create yours.'}
+                  {modalSubtitle}
                 </p>
                 <Link
                   to="/contact"
@@ -354,13 +353,19 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                   </div>
                 </div>
 
+                {modalSubtitle && (
+                  <p className="text-xs text-muted-foreground font-light mb-8">
+                    {modalSubtitle}
+                  </p>
+                )}
+
                 {(isStationeryEssential || isStationeryPremium) && (
                   <p className="text-xs text-muted-foreground font-light mb-8">
                     Each set contains 15 gift cards, 15 gift tags and 15 envelopes
                   </p>
                 )}
 
-                {(isGiftingTravel) && (
+                {isGiftingTravel && !modalSubtitle && (
                   <p className="text-xs text-muted-foreground font-light mb-8">
                     Made with vegan leather and brass detailing. 
                   </p>
@@ -458,7 +463,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                       type="text"
                       value={initials}
                       onChange={(event) => setInitials(event.target.value)}
-                      maxLength={6}
+                      maxLength={2}
                       placeholder="Enter initials"
                       className="w-full border border-border bg-background px-3 py-2 text-sm font-light text-foreground/80 focus:outline-none focus:ring-1 focus:ring-foreground/20"
                     />
@@ -506,6 +511,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                       value={personalizationName}
                       onChange={(event) => setPersonalizationName(event.target.value)}
                       placeholder="Enter name"
+                      maxLength={40}
                       className="w-full border border-border bg-background px-3 py-2 text-sm font-light text-foreground/80 focus:outline-none focus:ring-1 focus:ring-foreground/20"
                     />
                   </div>
@@ -601,6 +607,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                                     updateAdditionalPersonalization(set, 'name', event.target.value)
                                   }
                                   placeholder="Enter name"
+                                  maxLength={40}
                                   className="w-full border border-border bg-background px-3 py-2 text-sm font-light text-foreground/80 focus:outline-none focus:ring-1 focus:ring-foreground/20"
                                 />
                               </div>

@@ -8,6 +8,8 @@ export interface Product {
   img: string;
   images: string[];
   category: string;
+  subtitle?: string | null;
+  description?: string | null;
   price: number | null;
   personalizedPrice?: number | null;
   sizes?: Array<{ label: string; price: number; personalizedPrice?: number | null }> | null;
@@ -64,6 +66,13 @@ export function useProducts(collectionNames: string[]) {
               img: images[0] || '',
               images,
               category: collectionName,
+              subtitle:
+                typeof data.subtitle === 'string'
+                  ? data.subtitle
+                  : typeof data.description === 'string'
+                    ? data.description
+                    : null,
+              description: typeof data.description === 'string' ? data.description : null,
               price: typeof data.price === 'number' ? data.price : null,
               personalizedPrice: typeof data.personalizedPrice === 'number' ? data.personalizedPrice : null,
               sizes: sizes.length ? sizes : null,
