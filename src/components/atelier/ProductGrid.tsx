@@ -22,7 +22,22 @@ export default function ProductGrid({ products, loading, error }: ProductGridPro
           ),
     [error, loading, products],
   );
-  useImagePreloader(imageUrls);
+  const firstImages = useMemo(
+    () =>
+      loading || error
+        ? []
+        : products.map((product) => product.images[0] || product.img).filter(Boolean),
+    [error, loading, products],
+  );
+  const extraImages = useMemo(
+    () =>
+      loading || error
+        ? []
+        : products.flatMap((product) => product.images.slice(1)),
+    [error, loading, products],
+  );
+  useImagePreloader(firstImages, 4);
+  useImagePreloader(extraImages.length ? extraImages : imageUrls, 5);
 
   if (loading) {
     return (

@@ -17,6 +17,7 @@ export default function CoffeeTableBooks() {
         error={error}
         showImageName={false}
         description={description}
+        prefetchPriority={1}
       />
     </PageLayout>
   );

@@ -10,7 +10,15 @@ export default function Invitations() {
 
   return (
     <PageLayout>
-      <HamperSlideshow title="Invitations" products={products} loading={loading} error={error} description={description} showImageName = {false} />
+      <HamperSlideshow
+        title="Invitations"
+        products={products}
+        loading={loading}
+        error={error}
+        description={description}
+        showImageName={false}
+        prefetchPriority={3}
+      />
     </PageLayout>
   );
 }

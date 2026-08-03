@@ -23,7 +23,7 @@ const heroImages = [
 
 export default function Home() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  useImagePreloader(heroImages);
+  useImagePreloader(heroImages, 0);
 
   useEffect(() => {
     if (heroImages.length <= 1) return;

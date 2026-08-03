@@ -13,7 +13,14 @@ export default function Hampers({ title = 'Gift Hampers', collections = ['hamper
 
   return (
     <PageLayout>
-      <HamperSlideshow title={title} products={products} loading={loading} error={error} description={description} />
+      <HamperSlideshow
+        title={title}
+        products={products}
+        loading={loading}
+        error={error}
+        description={description}
+        prefetchPriority={2}
+      />
     </PageLayout>
   );
 }

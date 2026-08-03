@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Product } from '@/hooks/useProducts';
+import { useImagePreloader } from '@/hooks/useImagePreloader';
 
 interface HamperSlideshowProps {
   title: string;
@@ -10,6 +11,7 @@ interface HamperSlideshowProps {
   error: string | null;
   showImageName?: boolean;
   description?: string;
+  prefetchPriority?: number;
 }
 
 type Slide = {
@@ -18,7 +20,7 @@ type Slide = {
   image: string;
 };
 
-export default function HamperSlideshow({ title, products, loading, error, showImageName = true, description = '' }: HamperSlideshowProps) {
+export default function HamperSlideshow({ title, products, loading, error, showImageName = true, description = '', prefetchPriority = 2 }: HamperSlideshowProps) {
   const [activeIndex, setActiveIndex] = useState(0);
 
   const slides = useMemo<Slide[]>(
@@ -38,14 +40,7 @@ export default function HamperSlideshow({ title, products, loading, error, showI
     setActiveIndex(0);
   }, [slides.length]);
 
-  useEffect(() => {
-    slides.forEach((slide) => {
-      const image = new Image();
-      image.decoding = 'async';
-      image.loading = 'eager';
-      image.src = slide.image;
-    });
-  }, [slides]);
+  useImagePreloader(slides.map((slide) => slide.image), prefetchPriority);
 
   useEffect(() => {
     if (slides.length <= 1) return;
