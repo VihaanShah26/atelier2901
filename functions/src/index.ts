@@ -241,13 +241,15 @@ ${order?.notes || "(none)"}
 `Hi ${customerName || "there"},
 
 We've received your order (ID: ${orderId}).
-Our team will reach out shortly to confirm details.
+Our team will reach out shortly to confirm your order and share the payment details. Once the payment has been completed, we'll get started on your order.
 
 Items:
 ${itemLines || "- (no items found)"}
 
 Subtotal:
 ${subtotal === null ? "Price not set" : formatCurrency(subtotal)}
+
+Looking forward to creating something special for you!
 
 Thank you,
 ATELIER 2901
