@@ -242,7 +242,6 @@ ${order?.notes || "(none)"}
 
 We've received your order (ID: ${orderId}).
 Our team will reach out shortly to confirm details.
-Phone: ${orderPhone || "(not provided)"}
 
 Items:
 ${itemLines || "- (no items found)"}

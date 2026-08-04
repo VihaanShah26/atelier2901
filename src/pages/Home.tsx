@@ -9,7 +9,9 @@ const categories = [
   { title: 'Gifting', path: '/gifting' },
   { title: 'Coffee Table Books', path: '/coffee-table-books' },
   { title: 'Invitations', path: '/invitations' },
-  { title: 'About / Contact', path: '/about' },
+  { title: 'Gift Hampers', path: '/hampers' },
+  { title: 'About', path: '/about' },
+  { title: 'Contact', path: '/contact' },
 ];
 
 const heroImages = [

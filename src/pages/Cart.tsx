@@ -99,7 +99,7 @@ export default function Cart() {
       });
 
       const emailResult = await postJSON('/api/order/confirm', {
-        orderId: orderRef.id,
+        orderId: orderRef.id.slice(-6).toUpperCase(),
         customerEmail: trimmedEmail,
         customerName: trimmedName,
         customerPhone: trimmedPhone,
