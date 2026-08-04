@@ -55,7 +55,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
   const selectedSizeOption = sizeOptions.find((size) => size.label === selectedSize) || sizeOptions[0];
   const showSizeSelector = sizeOptions.length > 1;
   const stationeryBasePrice = product.price ?? 1900;
-  const stationeryPersonalizedPrice = product.personalizedPrice ?? 2200;
+  const stationeryPersonalizedPrice = product.personalizedPrice ?? null;
   const giftingPrice = product.price ?? 2000;
   const goldFoilPrice = supportsGoldFoil && goldFoil === 'yes' ? product.category === 'stationery_money' ? 1000 : 600 : 0;
   const baseResolvedPrice = sizeOptions.length
@@ -390,7 +390,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
                   </div>
                 )}
 
-                {!isGiftingProduct && (
+                {!isGiftingProduct && stationeryPersonalizedPrice !== null && (
                   <div className="mb-8">
                     <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-light">
                       Do you wish to personalize this?
