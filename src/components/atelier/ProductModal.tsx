@@ -150,7 +150,7 @@ export default function ProductModal({ product, onClose }: ProductModalProps) {
   };
 
   const handleGoldFoilYes = () => {
-    if (quantity < 2) {
+    if (quantity < 2 && product.category !== 'stationery_money') {
       setGoldFoilPrompt('select');
       return;
     }
