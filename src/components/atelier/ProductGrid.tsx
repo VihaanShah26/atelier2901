@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Product } from '@/hooks/useProducts';
-import { useImagePreloader } from '@/hooks/useImagePreloader';
+import { enqueueImagePrefetch, useImagePreloader } from '@/hooks/useImagePreloader';
 import ProductCard from './ProductCard';
 import ProductModal from './ProductModal';
 import ProductSkeleton from './ProductSkeleton';
@@ -13,6 +13,7 @@ interface ProductGridProps {
 
 export default function ProductGrid({ products, loading, error }: ProductGridProps) {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [extraImagesQueued, setExtraImagesQueued] = useState(false);
   const imageUrls = useMemo(
     () =>
       loading || error
@@ -36,8 +37,23 @@ export default function ProductGrid({ products, loading, error }: ProductGridPro
         : products.flatMap((product) => product.images.slice(1)),
     [error, loading, products],
   );
-  useImagePreloader(firstImages, 4);
-  useImagePreloader(extraImages.length ? extraImages : imageUrls, 5);
+  const firstImagesStatus = useImagePreloader(firstImages, 4);
+
+  useEffect(() => {
+    setExtraImagesQueued(false);
+  }, [imageUrls, firstImages, extraImages]);
+
+  useEffect(() => {
+    if (loading || error || extraImagesQueued) return;
+    if (!firstImagesStatus.isLoaded) return;
+    if (extraImages.length === 0) {
+      setExtraImagesQueued(true);
+      return;
+    }
+
+    enqueueImagePrefetch(extraImages, 5);
+    setExtraImagesQueued(true);
+  }, [error, extraImages, extraImagesQueued, firstImagesStatus.isLoaded, imageUrls, firstImagesStatus.total, loading]);
 
   if (loading) {
     return (

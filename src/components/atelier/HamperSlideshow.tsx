@@ -40,7 +40,7 @@ export default function HamperSlideshow({ title, products, loading, error, showI
     setActiveIndex(0);
   }, [slides.length]);
 
-  useImagePreloader(slides.map((slide) => slide.image), prefetchPriority);
+  const imageStatus = useImagePreloader(slides.map((slide) => slide.image), prefetchPriority);
 
   useEffect(() => {
     if (slides.length <= 1) return;
@@ -52,8 +52,34 @@ export default function HamperSlideshow({ title, products, loading, error, showI
     return () => window.clearInterval(timer);
   }, [slides.length]);
 
-  if (loading) {
-    return <div className="min-h-[calc(100vh-4rem)] w-full animate-pulse bg-muted lg:min-h-[calc(100vh-5rem)]" />;
+  if (loading || !imageStatus.isLoaded) {
+    return (
+      <section className="grid min-h-[calc(100vh-4rem)] w-full overflow-hidden bg-background lg:min-h-[calc(100vh-5rem)] lg:grid-cols-[40%_60%]" style={{ animationDelay: '100ms' }}>
+        <div className="flex min-h-[40vh] items-center px-6 py-16 text-left lg:min-h-[calc(100vh-5rem)] lg:pl-[max(3rem,calc((100vw-1280px)/2+3rem))] lg:pr-8">
+          <div className="max-w-sm space-y-4">
+            <div className="h-4 w-32 rounded-full bg-muted animate-pulse" />
+            <div className="h-10 rounded-full bg-muted animate-pulse" />
+            <div className="space-y-3">
+              <div className="h-3 rounded-full bg-muted w-5/6 animate-pulse" />
+              <div className="h-3 rounded-full bg-muted w-2/3 animate-pulse" />
+              <div className="h-3 rounded-full bg-muted w-3/4 animate-pulse" />
+              <div className="h-3 rounded-full bg-muted w-1/2 animate-pulse" />
+            </div>
+          </div>
+        </div>
+
+        <div className="relative min-h-[60vh] overflow-hidden bg-muted lg:min-h-[calc(100vh-5rem)]">
+          <div className="absolute inset-0 grid place-items-center px-6 text-center">
+            <div className="rounded-full bg-muted p-6 shadow-lg shadow-black/10 animate-pulse">
+              <div className="h-12 w-12 rounded-full bg-background" />
+            </div>
+            <div className="mt-6 text-sm uppercase tracking-widest text-muted-foreground font-light">
+              Loading gallery...
+            </div>
+          </div>
+        </div>
+      </section>
+    );
   }
 
   if (error) {
