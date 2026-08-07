@@ -43,14 +43,14 @@ export default function HamperSlideshow({ title, products, loading, error, showI
   const imageStatus = useImagePreloader(slides.map((slide) => slide.image), prefetchPriority);
 
   useEffect(() => {
-    if (slides.length <= 1) return;
+    if (slides.length <= 1 || !imageStatus.isLoaded) return;
 
     const timer = window.setInterval(() => {
       setActiveIndex((index) => (index + 1) % slides.length);
     }, 2500);
 
     return () => window.clearInterval(timer);
-  }, [slides.length]);
+  }, [slides.length, imageStatus.isLoaded]);
 
   if (loading || !imageStatus.isLoaded) {
     return (
