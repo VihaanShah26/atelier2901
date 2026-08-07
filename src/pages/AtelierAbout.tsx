@@ -28,7 +28,7 @@ export default function AtelierAbout() {
 
             <div className="mt-2 space-y-6 animate-fade-in opacity-0" style={{ animationDelay: '200ms' }}>
               <p className="font-light leading-relaxed text-muted-foreground">
-                At ATELIER 2901, we curate exquisite bespoke designs that celebrate individuality, elegance, and refined craftsmanship.
+                At ATELIER 2901, we curate exquisite bespoke designs that celebrate individuality, elegance and refined craftsmanship.
               </p>
               
               <p className="font-light leading-relaxed text-muted-foreground">
@@ -40,7 +40,7 @@ export default function AtelierAbout() {
               </p>
 
               <p className="font-light leading-relaxed text-muted-foreground">
-                For Payal, design is not just a craft—it is a way of noticing beauty, telling stories, and creating pieces that are both meaningful and timeless. Today, ATELIER 2901 creates bespoke stationery, luxury invitations, curated gifting, personalized coffee table books, and bespoke creations that celebrate life's most meaningful moments. Every piece is thoughtfully designed and meticulously crafted to reflect the unique personality, style, and story of each client.
+                For Payal, design is not just a craft - it is a way of noticing beauty, telling stories, and creating pieces that are both meaningful and timeless. Today, ATELIER 2901 creates bespoke stationery, luxury invitations, curated gifting, personalized coffee table books, and bespoke creations that celebrate life's most meaningful moments. Every piece is thoughtfully designed and meticulously crafted to reflect the unique personality, style, and story of each client.
               </p>
               
               <p className="font-light leading-relaxed text-muted-foreground">
