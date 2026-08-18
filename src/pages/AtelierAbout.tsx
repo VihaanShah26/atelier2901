@@ -3,7 +3,7 @@ import PageLayout from '@/components/atelier/PageLayout';
 import { useImagePreloader } from '@/hooks/useImagePreloader';
 
 export default function AtelierAbout() {
-  useImagePreloader(['/payal.jpeg']);
+  // useImagePreloader(['/payal2.jpeg']);
 
   return (
     <PageLayout>
@@ -12,7 +12,7 @@ export default function AtelierAbout() {
           <div className="-mx-6 flex justify-center animate-fade-in opacity-0 lg:sticky lg:top-20 lg:mx-0 lg:h-[calc(100vh-5rem)] lg:w-[30vw]" style={{ animationDelay: '100ms' }}>
             <div className="w-full overflow-hidden bg-muted lg:h-full">
               <img
-                src="/payal.jpeg"
+                src="/payal2.jpeg"
                 alt="Payal Shah"
                 className="w-full object-cover lg:h-full"
               />

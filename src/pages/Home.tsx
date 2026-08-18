@@ -15,9 +15,12 @@ const categories = [
 ];
 
 const heroImages = [
-  'homeImages/IMG_0145.jpg',
+  'homeImages/IMG_3163.jpeg',
   'homeImages/IMG_2873.jpg',
-  'homeImages/IMG_6522.jpg',
+  'homeImages/IMG_3430.jpeg',
+  'homeImages/IMG_6537.jpeg',
+  'homeImages/IMG_3182.jpeg',
+  'homeImages/IMG_0145.jpg',
   'homeImages/IMG_8391.jpg',
   'homeImages/IMG_8611.jpg',
 
@@ -52,7 +55,7 @@ export default function Home() {
               aria-hidden="true"
             />
           ))}
-          <div className="absolute inset-0 bg-black/45" aria-hidden="true" />
+          <div className="absolute inset-0 bg-black/30" aria-hidden="true" />
         </div>
         <div className="relative mx-auto flex w-full max-w-6xl min-h-[calc(100vh-64px)] lg:min-h-[calc(100vh-80px)] items-center justify-center md:justify-end">
           <div className="max-w-2xl text-center md:text-right text-white">

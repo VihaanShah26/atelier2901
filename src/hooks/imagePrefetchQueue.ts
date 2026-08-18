@@ -133,15 +133,19 @@ export const useImagePreloader = (
   imageUrls: Array<string | null | undefined>,
   priority = 100,
 ): ImagePreloaderStatus => {
-  const [status, setStatus] = useState<ImagePreloaderStatus>(() => getPrefetchStatus(imageUrls));
+  const normalized = normalizeUrls(imageUrls);
+  const urlsKey = normalized.join('||');
+
+  const [status, setStatus] = useState<ImagePreloaderStatus>(() => getPrefetchStatus(normalized));
 
   useEffect(() => {
-    enqueueImagePrefetch(imageUrls, priority);
-    const updateStatus = () => setStatus(getPrefetchStatus(imageUrls));
+    enqueueImagePrefetch(normalized, priority);
+    const updateStatus = () => setStatus(getPrefetchStatus(normalized));
     updateStatus();
     const unsubscribe = subscribeToPrefetchProgress(updateStatus);
     return unsubscribe;
-  }, [imageUrls, priority]);
+    // Depend on a stable key for the url list, not on the array identity
+  }, [urlsKey, priority]);
 
   return status;
 };
