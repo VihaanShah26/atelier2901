@@ -17,10 +17,9 @@ const categories = [
 const heroImages = [
   'homeImages/IMG_3163.jpeg',
   'homeImages/IMG_2873.jpg',
-  'homeImages/IMG_3430.jpeg',
-  'homeImages/IMG_6537.jpeg',
-  'homeImages/IMG_3182.jpeg',
   'homeImages/IMG_0145.jpg',
+  'homeImages/IMG_6537.jpeg',
+  'homeImages/IMG_6821.jpg',
   'homeImages/IMG_8391.jpg',
   'homeImages/IMG_8611.jpg',
 
@@ -35,7 +34,7 @@ export default function Home() {
 
     const intervalId = window.setInterval(() => {
       setCurrentImageIndex((prev) => (prev + 1) % heroImages.length);
-    }, 5000);
+    }, 3000);
 
     return () => window.clearInterval(intervalId);
   }, []);

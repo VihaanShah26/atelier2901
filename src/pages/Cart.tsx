@@ -1,13 +1,18 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Minus, Plus, X, ArrowLeft, Check } from 'lucide-react';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import PageLayout from '@/components/atelier/PageLayout';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { useImagePreloader } from '@/hooks/useImagePreloader';
 import { postJSON } from '@/lib/api';
-import { db } from '@/lib/firebase';
+
+type CreateOrderResponse = {
+  orderId: string;
+  displayId: string;
+  subtotal: number;
+  totalItems: number;
+};
 
 export default function Cart() {
   const { toast } = useToast();
@@ -80,37 +85,32 @@ export default function Cart() {
       setOrderNotice({ status: 'error', message: 'Phone number is required.' });
       return;
     }
+    if (!/^[0-9+\-()\s]{7,30}$/.test(trimmedPhone)) {
+      setOrderNotice({ status: 'error', message: 'Please enter a valid phone number.' });
+      return;
+    }
 
     setOrderNotice({ status: 'loading', message: '' });
 
     try {
-      const orderRef = await addDoc(collection(db, 'orders'), {
+      const orderResult = await postJSON<CreateOrderResponse>('/api/orders', {
         items,
-        subtotal,
-        totalItems,
-        customerName: trimmedName,
-        customerEmail: trimmedEmail,
         customer: {
           fullName: trimmedName,
           email: trimmedEmail,
           phone: trimmedPhone,
         },
-        createdAt: serverTimestamp(),
       });
 
-      const emailResult = await postJSON('/api/order/confirm', {
-        orderId: orderRef.id.slice(-6).toUpperCase(),
-        customerEmail: trimmedEmail,
-        customerName: trimmedName,
-        customerPhone: trimmedPhone,
-      });
-
-      if (emailResult.ok) {
-        toast({ description: 'Order placed. Confirmation email sent.' });
-      } else {
-        toast({ description: 'Order placed, but confirmation email may be delayed.' });
+      if (!orderResult.ok) {
+        setOrderNotice({
+          status: 'error',
+          message: orderResult.message || 'Something went wrong while placing the order. Please try again.',
+        });
+        return;
       }
 
+      toast({ description: `Order ${orderResult.data?.displayId || ''} placed. Confirmation email sent.`.trim() });
       setOrderNotice({ status: 'idle', message: '' });
       setOrderPlaced(true);
       clearCart();

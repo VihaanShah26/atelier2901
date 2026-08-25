@@ -1,17 +1,24 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { getAnalytics } from "firebase/analytics";
+import { getAnalytics, isSupported } from 'firebase/analytics';
 
-// Firebase configuration - replace with your own config
+const requiredEnv = (name: string) => {
+  const value = import.meta.env[name] as string | undefined;
+  if (!value) {
+    throw new Error(`${name} is required.`);
+  }
+  return value;
+};
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "YOUR_API_KEY",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "YOUR_AUTH_DOMAIN",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "YOUR_PROJECT_ID",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "YOUR_STORAGE_BUCKET",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "YOUR_MESSAGING_SENDER_ID",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "YOUR_APP_ID",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "YOUR_MEASUREMENT_ID",
+  apiKey: requiredEnv('VITE_FIREBASE_API_KEY'),
+  authDomain: requiredEnv('VITE_FIREBASE_AUTH_DOMAIN'),
+  projectId: requiredEnv('VITE_FIREBASE_PROJECT_ID'),
+  storageBucket: requiredEnv('VITE_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: requiredEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: requiredEnv('VITE_FIREBASE_APP_ID'),
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID as string | undefined,
 };
 
 // Initialize Firebase
@@ -22,6 +29,8 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 
 // Initialize Analytics and export it
-export const analytics = getAnalytics(app);
+export const analytics = firebaseConfig.measurementId
+  ? isSupported().then((supported) => (supported ? getAnalytics(app) : null))
+  : Promise.resolve(null);
 
 export default app;

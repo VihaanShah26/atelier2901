@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,11 +14,13 @@ import Hampers from "./pages/Hampers";
 import AtelierAbout from "./pages/AtelierAbout";
 import AtelierContact from "./pages/AtelierContact";
 import Cart from "./pages/Cart";
-import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
 
 const queryClient = new QueryClient();
+const clientAdminEnabled =
+  import.meta.env.DEV || import.meta.env.VITE_ENABLE_CLIENT_ADMIN === "true";
+const Admin = clientAdminEnabled ? lazy(() => import("./pages/Admin")) : null;
 
 function App() {
   return (
@@ -38,7 +41,18 @@ function App() {
               <Route path="/about" element={<AtelierAbout />} />
               <Route path="/contact" element={<AtelierContact />} />
               <Route path="/cart" element={<Cart />} />
-              <Route path="/admin" element={<Admin />} />
+              <Route
+                path="/admin"
+                element={
+                  Admin ? (
+                    <Suspense fallback={null}>
+                      <Admin />
+                    </Suspense>
+                  ) : (
+                    <NotFound />
+                  )
+                }
+              />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

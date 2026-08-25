@@ -15,7 +15,7 @@ const DEFAULT_TIMEOUT_MS = 12000;
 const buildUrl = (path: string) => {
   if (!API_BASE_URL) return path;
   if (/^https?:\/\//i.test(path)) return path;
-  let base = API_BASE_URL.replace(/\/+$/, '');
+  const base = API_BASE_URL.replace(/\/+$/, '');
   let suffix = path.startsWith('/') ? path : `/${path}`;
   if (base.endsWith('/api') && suffix.startsWith('/api/')) {
     suffix = suffix.replace(/^\/api/, '');

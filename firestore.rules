@@ -1,0 +1,33 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isCatalogCollection(collectionId) {
+      return collectionId in [
+        'stationery_essential',
+        'stationery_premium',
+        'stationery_money',
+        'stationery_hampers',
+        'gifting_travel',
+        'gifting_coasters',
+        'gifting_wine',
+        'coffeetablebooks',
+        'invitations',
+        'hampers'
+      ];
+    }
+
+    match /orders/{orderId} {
+      allow read, write: if false;
+    }
+
+    match /{collectionId}/{documentId} {
+      allow read: if isCatalogCollection(collectionId);
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

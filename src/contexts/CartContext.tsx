@@ -56,6 +56,13 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const CART_STORAGE_KEY = 'atelier2901-cart';
+const MAX_CART_QUANTITY = 99;
+
+const clampQuantity = (value: unknown) => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) return 1;
+  return Math.min(parsed, MAX_CART_QUANTITY);
+};
 
 const normalizePersonalizationDetails = (details: unknown): PersonalizationDetail[] => {
   if (!Array.isArray(details)) return [];
@@ -80,22 +87,34 @@ const detailsKey = (details: PersonalizationDetail[]) =>
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(CART_STORAGE_KEY);
-      if (!saved) return [];
-      const parsed = JSON.parse(saved);
-      if (!Array.isArray(parsed)) return [];
-      return parsed.map((item) => ({
-        ...item,
-        personalize: item.personalize === 'yes' ? 'yes' : 'no',
-        goldFoil: item.goldFoil === 'yes' ? 'yes' : item.goldFoil === 'no' ? 'no' : null,
-        price: typeof item.price === 'number' ? item.price : null,
-        greeting: typeof item.greeting === 'string' ? item.greeting : null,
-        personalizationName:
-          typeof item.personalizationName === 'string' ? item.personalizationName : null,
-        personalizationDetails: normalizePersonalizationDetails(item.personalizationDetails),
-        initials: typeof item.initials === 'string' ? item.initials : null,
-        size: typeof item.size === 'string' ? item.size : null,
-      })) as CartItem[];
+      try {
+        const saved = localStorage.getItem(CART_STORAGE_KEY);
+        if (!saved) return [];
+        const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+          .filter((item) => item && typeof item === 'object')
+          .map((item) => ({
+            id: typeof item.id === 'string' ? item.id : '',
+            name: typeof item.name === 'string' ? item.name : 'ATELIER 2901',
+            img: typeof item.img === 'string' ? item.img : '',
+            category: typeof item.category === 'string' ? item.category : '',
+            quantity: clampQuantity(item.quantity),
+            personalize: item.personalize === 'yes' ? 'yes' : 'no',
+            goldFoil: item.goldFoil === 'yes' ? 'yes' : item.goldFoil === 'no' ? 'no' : null,
+            price: typeof item.price === 'number' && Number.isFinite(item.price) ? item.price : null,
+            greeting: typeof item.greeting === 'string' ? item.greeting.slice(0, 35) : null,
+            personalizationName:
+              typeof item.personalizationName === 'string' ? item.personalizationName.slice(0, 60) : null,
+            personalizationDetails: normalizePersonalizationDetails(item.personalizationDetails),
+            initials: typeof item.initials === 'string' ? item.initials.slice(0, 2) : null,
+            size: typeof item.size === 'string' ? item.size.slice(0, 80) : null,
+          }))
+          .filter((item) => item.id && item.category) as CartItem[];
+      } catch {
+        localStorage.removeItem(CART_STORAGE_KEY);
+        return [];
+      }
     }
     return [];
   });
@@ -127,11 +146,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           i.initials === item.initials &&
           i.size === item.size &&
           i.goldFoil === item.goldFoil
-            ? { ...i, quantity: i.quantity + quantity }
+            ? { ...i, quantity: clampQuantity(i.quantity + quantity) }
             : i
         );
       }
-      return [...prev, { ...item, quantity }];
+      return [...prev, { ...item, quantity: clampQuantity(quantity) }];
     });
   };
 
@@ -186,7 +205,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       i.initials === initials &&
       i.size === size &&
       i.goldFoil === goldFoil
-        ? { ...i, quantity }
+        ? { ...i, quantity: clampQuantity(quantity) }
         : i
     ));
   };
