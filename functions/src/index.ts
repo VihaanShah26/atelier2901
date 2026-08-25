@@ -7,6 +7,9 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { Resend } from "resend";
+import { readFileSync } from "fs";
+import { join } from "path";
+import { deflateSync, inflateSync } from "zlib";
 
 initializeApp();
 const db = getFirestore();
@@ -185,56 +188,594 @@ function formatCurrency(value: unknown) {
   return `Rs. ${numberValue.toLocaleString("en-IN")}`;
 }
 
-function formatOrderItems(items: unknown[]) {
-  return items.map((rawItem, index: number) => {
-    const it = asRecord(rawItem);
-    const nm = cleanText(it.name, 120) || "ATELIER 2901";
-    const qty = Number(it.quantity) || 1;
-    const unitPrice = typeof it.price === "number" ? it.price : null;
-    const lineTotal = unitPrice === null ? null : unitPrice * qty;
-    const details = [
-      `  Quantity: ${qty}`,
-      `  Unit price: ${unitPrice === null ? "Price not set" : formatCurrency(unitPrice)}`,
-      `  Line total: ${lineTotal === null ? "Price not set" : formatCurrency(lineTotal)}`,
-    ];
+type Rgb = [number, number, number];
 
-    if (it.personalize === "yes" || it.personalize === "no") {
-      details.push(`  Personalized: ${it.personalize === "yes" ? "Yes" : "No"}`);
+type ParsedPng = {
+  width: number;
+  height: number;
+  rgb: Buffer;
+  alpha: Buffer | null;
+};
+
+type PdfImage = {
+  width: number;
+  height: number;
+  rgb: Buffer;
+  alpha: Buffer | null;
+};
+
+type PdfPage = {
+  content: string[];
+};
+
+type InvoiceItem = {
+  name: string;
+  quantity: number;
+  unitPrice: number | null;
+  lineTotal: number | null;
+  details: string[];
+};
+
+type CustomerAddress = {
+  streetAddress1: string;
+  streetAddress2: string;
+  city: string;
+  state: string;
+  country: string;
+  zipCode: string;
+};
+
+type InvoiceData = {
+  orderId: string;
+  customerName: string;
+  customerAddress: CustomerAddress | null;
+  customerAddressText: string;
+  customerEmail: string;
+  customerPhone: string;
+  items: InvoiceItem[];
+  productSubtotal: number | null;
+  shippingCost: number | null;
+  subtotal: number | null;
+  date: Date;
+};
+
+const PDF_WIDTH = 597.863;
+const PDF_HEIGHT = 844.463;
+const BRAND_GREEN: Rgb = [184, 216, 0];
+const BLACK: Rgb = [0, 0, 0];
+const INVOICE_LOGO = loadPngImage(join(__dirname, "../assets/logo-black.png"), true);
+
+function loadPngImage(path: string, turnGreenPixelsWhite = false): PdfImage {
+  const parsed = parsePng(readFileSync(path));
+  if (turnGreenPixelsWhite) {
+    replaceLogoGreenWithWhite(parsed.rgb);
+  }
+  return {
+    width: parsed.width,
+    height: parsed.height,
+    rgb: deflateSync(parsed.rgb),
+    alpha: parsed.alpha ? deflateSync(parsed.alpha) : null,
+  };
+}
+
+function replaceLogoGreenWithWhite(rgb: Buffer) {
+  for (let index = 0; index < rgb.length; index += 3) {
+    const red = rgb[index];
+    const green = rgb[index + 1];
+    const blue = rgb[index + 2];
+    if (green > 120 && red > 80 && blue < 80) {
+      rgb[index] = 255;
+      rgb[index + 1] = 255;
+      rgb[index + 2] = 255;
     }
-    if (typeof it.greeting === "string" && it.greeting.trim()) {
-      details.push(`  Greeting: ${it.greeting.trim()}`);
+  }
+}
+
+function parsePng(buffer: Buffer): ParsedPng {
+  const signature = "89504e470d0a1a0a";
+  if (buffer.subarray(0, 8).toString("hex") !== signature) {
+    throw new Error("Logo image must be a PNG file.");
+  }
+
+  let offset = 8;
+  let width = 0;
+  let height = 0;
+  let bitDepth = 0;
+  let colorType = 0;
+  const idatChunks: Buffer[] = [];
+
+  while (offset < buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const type = buffer.subarray(offset + 4, offset + 8).toString("ascii");
+    const data = buffer.subarray(offset + 8, offset + 8 + length);
+
+    if (type === "IHDR") {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data[8];
+      colorType = data[9];
+    } else if (type === "IDAT") {
+      idatChunks.push(data);
+    } else if (type === "IEND") {
+      break;
     }
-    if (typeof it.personalizationName === "string" && it.personalizationName.trim()) {
-      details.push(`  Name: ${it.personalizationName.trim()}`);
+
+    offset += length + 12;
+  }
+
+  if (bitDepth !== 8 || (colorType !== 2 && colorType !== 6)) {
+    throw new Error("Logo PNG must use 8-bit RGB or RGBA color.");
+  }
+
+  const channels = colorType === 6 ? 4 : 3;
+  const raw = inflateSync(Buffer.concat(idatChunks));
+  const stride = width * channels;
+  const pixels = Buffer.alloc(width * height * channels);
+  let sourceOffset = 0;
+  let targetOffset = 0;
+  let previous = Buffer.alloc(stride);
+
+  for (let row = 0; row < height; row += 1) {
+    const filter = raw[sourceOffset];
+    sourceOffset += 1;
+    const scanline = Buffer.from(raw.subarray(sourceOffset, sourceOffset + stride));
+    sourceOffset += stride;
+
+    for (let i = 0; i < stride; i += 1) {
+      const left = i >= channels ? scanline[i - channels] : 0;
+      const up = previous[i] || 0;
+      const upperLeft = i >= channels ? previous[i - channels] || 0 : 0;
+
+      if (filter === 1) {
+        scanline[i] = (scanline[i] + left) & 255;
+      } else if (filter === 2) {
+        scanline[i] = (scanline[i] + up) & 255;
+      } else if (filter === 3) {
+        scanline[i] = (scanline[i] + Math.floor((left + up) / 2)) & 255;
+      } else if (filter === 4) {
+        scanline[i] = (scanline[i] + paethPredictor(left, up, upperLeft)) & 255;
+      } else if (filter !== 0) {
+        throw new Error("Unsupported PNG filter.");
+      }
     }
-    if (Array.isArray(it.personalizationDetails) && it.personalizationDetails.length > 0) {
-      details.push("  Personalization details:");
-      it.personalizationDetails.forEach((rawDetail: unknown, detailIndex: number) => {
+
+    scanline.copy(pixels, targetOffset);
+    targetOffset += stride;
+    previous = scanline;
+  }
+
+  const rgb = Buffer.alloc(width * height * 3);
+  const alpha = colorType === 6 ? Buffer.alloc(width * height) : null;
+
+  for (let source = 0, rgbTarget = 0, alphaTarget = 0; source < pixels.length; source += channels) {
+    rgb[rgbTarget] = pixels[source];
+    rgb[rgbTarget + 1] = pixels[source + 1];
+    rgb[rgbTarget + 2] = pixels[source + 2];
+    rgbTarget += 3;
+    if (alpha) {
+      alpha[alphaTarget] = pixels[source + 3];
+      alphaTarget += 1;
+    }
+  }
+
+  return {
+    width,
+    height,
+    rgb,
+    alpha: alpha && alpha.some((value) => value < 255) ? alpha : null,
+  };
+}
+
+function paethPredictor(left: number, up: number, upperLeft: number) {
+  const estimate = left + up - upperLeft;
+  const leftDistance = Math.abs(estimate - left);
+  const upDistance = Math.abs(estimate - up);
+  const upperLeftDistance = Math.abs(estimate - upperLeft);
+
+  if (leftDistance <= upDistance && leftDistance <= upperLeftDistance) return left;
+  if (upDistance <= upperLeftDistance) return up;
+  return upperLeft;
+}
+
+function pdfColor(color: Rgb) {
+  return color.map((value) => (value / 255).toFixed(4)).join(" ");
+}
+
+function pdfString(value: string) {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)")
+    .replace(/[\r\n]+/g, " ");
+}
+
+function htmlEscape(value: unknown, maxLength = 500) {
+  return cleanText(value, maxLength)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function drawRect(page: PdfPage, x: number, y: number, width: number, height: number, fill: Rgb) {
+  page.content.push(`${pdfColor(fill)} rg ${x} ${y} ${width} ${height} re f\n`);
+}
+
+function drawText(page: PdfPage, text: string, x: number, y: number, size: number, color: Rgb = BLACK) {
+  page.content.push(`BT ${pdfColor(color)} rg /F1 ${size} Tf ${x} ${y} Td (${pdfString(text)}) Tj ET\n`);
+}
+
+function drawImage(page: PdfPage, x: number, y: number, width: number, height: number) {
+  page.content.push(`q ${width} 0 0 ${height} ${x} ${y} cm /Logo Do Q\n`);
+}
+
+function wrapText(text: string, maxChars: number) {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let line = "";
+
+  words.forEach((word) => {
+    const nextLine = line ? `${line} ${word}` : word;
+    if (nextLine.length > maxChars && line) {
+      lines.push(line);
+      line = word;
+      return;
+    }
+    line = nextLine;
+  });
+
+  if (line) lines.push(line);
+  return lines.length > 0 ? lines : [""];
+}
+
+function normalizeCustomerAddress(value: unknown): CustomerAddress {
+  const address = asRecord(value);
+  return {
+    streetAddress1: cleanText(address.streetAddress1, 100),
+    streetAddress2: cleanText(address.streetAddress2, 100),
+    city: cleanText(address.city, 80),
+    state: cleanText(address.state, 80),
+    country: cleanText(address.country, 80),
+    zipCode: cleanText(address.zipCode, 20),
+  };
+}
+
+function formatCustomerAddress(address: CustomerAddress | null, fallback: unknown = "") {
+  if (!address) {
+    return cleanText(fallback, 240);
+  }
+
+  const street = [address.streetAddress1, address.streetAddress2]
+    .filter(Boolean)
+    .join(", ");
+  const cityLine = [address.city, address.state, address.zipCode]
+    .filter(Boolean)
+    .join(", ");
+  return [street, cityLine, address.country]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function calculateShippingCost(city: unknown) {
+  return cleanText(city, 80).toLowerCase() === "mumbai" ? 150 : 250;
+}
+
+function getStoredCustomerAddress(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return normalizeCustomerAddress(value);
+}
+
+function cleanPhoneCountryCode(value: unknown) {
+  const countryCode = cleanText(value, 8);
+  if (!/^\+[0-9]{1,4}(?:-[0-9]{1,4})?$/.test(countryCode)) {
+    throw new ApiError(400, "Valid phone country code is required.");
+  }
+  return countryCode;
+}
+
+function formatStudioProductNames(items: unknown[]) {
+  return items.map((rawItem, index) => {
+    const item = asRecord(rawItem);
+    const name = cleanText(item.name, 120) || "ATELIER 2901";
+    return `${index + 1}. ${name}`;
+  }).join("\n");
+}
+
+function formatStudioProductHtml(params: {
+  items: unknown[];
+  orderId: string;
+  customerName: unknown;
+  customerEmail: unknown;
+  customerPhone: unknown;
+  productSubtotalText: string;
+  shippingText: string;
+  subtotalText: string;
+  notes: unknown;
+}) {
+  const rows = params.items.map((rawItem) => {
+    const item = asRecord(rawItem);
+    const name = htmlEscape(item.name || "ATELIER 2901");
+    const imageUrl = cleanText(item.img, 1000);
+    const imageCell = imageUrl ?
+      `<img src="${htmlEscape(imageUrl, 1000)}" alt="" width="56" height="56" style="display:block;width:56px;height:56px;object-fit:cover;border:1px solid #e5e5e5;" />` :
+      `<div style="width:56px;height:56px;border:1px solid #e5e5e5;background:#f7f7f7;"></div>`;
+
+    return `<tr>
+  <td style="width:68px;padding:8px 12px 8px 0;vertical-align:middle;">${imageCell}</td>
+  <td style="padding:8px 0;vertical-align:middle;font:14px Arial, Helvetica, sans-serif;color:#111111;">${name}</td>
+</tr>`;
+  }).join("");
+
+  return `<div style="font:14px Arial, Helvetica, sans-serif;color:#111111;line-height:1.5;">
+  <p>A new order was placed.</p>
+  <p>
+    <strong>Order ID:</strong> ${htmlEscape(params.orderId)}<br />
+    <strong>Customer:</strong> ${htmlEscape(params.customerName)} &lt;${htmlEscape(params.customerEmail || "no email")}&gt;<br />
+    <strong>Phone:</strong> ${htmlEscape(params.customerPhone || "(not provided)")}
+  </p>
+  <p><strong>Products:</strong></p>
+  <table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:0 0 16px 0;">
+    ${rows || `<tr><td style="font:14px Arial, Helvetica, sans-serif;color:#111111;">No products found.</td></tr>`}
+  </table>
+  <p>
+    <strong>Products:</strong> ${htmlEscape(params.productSubtotalText)}<br />
+    <strong>Shipping:</strong>  ${htmlEscape(params.shippingText)}<br />
+    <strong>Subtotal:</strong><br />
+    ${htmlEscape(params.subtotalText)}
+  </p>
+  <p>The itemized invoice is attached as a PDF.</p>
+  <p>
+    <strong>Notes:</strong><br />
+    ${htmlEscape(params.notes || "(none)")}
+  </p>
+</div>`;
+}
+
+function normalizeInvoiceItems(items: unknown[]): InvoiceItem[] {
+  return items.map((rawItem) => {
+    const item = asRecord(rawItem);
+    const quantity = parsePositiveInteger(item.quantity);
+    const unitPrice = typeof item.price === "number" ? item.price : null;
+    const lineTotal = typeof item.lineTotal === "number" ?
+      item.lineTotal :
+      unitPrice === null ? null : unitPrice * quantity;
+    const details: string[] = [];
+
+    if (typeof item.size === "string" && item.size.trim()) {
+      details.push(`Size: ${item.size.trim()}`);
+    }
+    if (item.goldFoil === "yes" || item.goldFoil === "no") {
+      details.push(`Gold foil: ${item.goldFoil === "yes" ? "Yes" : "No"}`);
+    }
+    if (item.personalize === "yes" || item.personalize === "no") {
+      details.push(`Personalized: ${item.personalize === "yes" ? "Yes" : "No"}`);
+    }
+    if (typeof item.greeting === "string" && item.greeting.trim()) {
+      details.push(`Greeting: ${item.greeting.trim()}`);
+    }
+    if (typeof item.personalizationName === "string" && item.personalizationName.trim()) {
+      details.push(`Name: ${item.personalizationName.trim()}`);
+    }
+    if (Array.isArray(item.personalizationDetails) && item.personalizationDetails.length > 0) {
+      item.personalizationDetails.forEach((rawDetail: unknown, detailIndex: number) => {
         const detail = asRecord(rawDetail);
         const set = Number(detail.set) || detailIndex + 1;
-        const greeting =
-          typeof detail.greeting === "string" && detail.greeting.trim()
-            ? detail.greeting.trim()
-            : "None";
-        const name =
-          typeof detail.name === "string" && detail.name.trim()
-            ? detail.name.trim()
-            : "None";
-        details.push(`    Set ${set}: Greeting: ${greeting}; Name: ${name}`);
+        const greeting = typeof detail.greeting === "string" && detail.greeting.trim() ?
+          detail.greeting.trim() :
+          "None";
+        const name = typeof detail.name === "string" && detail.name.trim() ?
+          detail.name.trim() :
+          "None";
+        details.push(`Set ${set}: Greeting ${greeting}; Name ${name}`);
       });
     }
-    if (typeof it.initials === "string" && it.initials.trim()) {
-      details.push(`  Initials: ${it.initials.trim()}`);
-    }
-    if (typeof it.size === "string" && it.size.trim()) {
-      details.push(`  Size: ${it.size.trim()}`);
-    }
-    if (it.goldFoil === "yes" || it.goldFoil === "no") {
-      details.push(`  Gold foil: ${it.goldFoil === "yes" ? "Yes" : "No"}`);
+    if (typeof item.initials === "string" && item.initials.trim()) {
+      details.push(`Initials: ${item.initials.trim()}`);
     }
 
-    return `${index + 1}. ${nm}\n${details.join("\n")}`;
-  }).join("\n\n");
+    return {
+      name: cleanText(item.name, 120) || "ATELIER 2901",
+      quantity,
+      unitPrice,
+      lineTotal,
+      details,
+    };
+  });
+}
+
+function getOrderDate(value: unknown) {
+  const timestamp = asRecord(value);
+  const toDate = timestamp.toDate;
+  if (typeof toDate === "function") {
+    return toDate.call(value) as Date;
+  }
+  return new Date();
+}
+
+function formatInvoiceDate(date: Date) {
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Kolkata",
+  });
+}
+
+function addInvoiceScaffold(page: PdfPage, invoice: InvoiceData, pageNumber: number) {
+  drawRect(page, 230, PDF_HEIGHT - 115, 138, 115, BRAND_GREEN);
+  drawImage(page, 242, PDF_HEIGHT - 75, 114, 15.4);
+
+  if (pageNumber === 1) {
+    const address = invoice.customerAddressText || invoice.customerEmail || "";
+    const addressLines = wrapText(address, 52).slice(0, 3);
+    drawText(page, `Client Name : ${invoice.customerName || ""}`, 39, 704, 12);
+    drawText(page, `Address : ${addressLines[0] || ""}`, 39, 684, 12);
+    if (addressLines[1]) {
+      drawText(page, addressLines[1], 83, 666, 10);
+    }
+    if (addressLines[2]) {
+      drawText(page, addressLines[2], 83, 650, 10);
+    }
+    drawText(page, invoice.customerPhone ? `Phone : ${invoice.customerPhone}` : "", 39, addressLines[2] ? 632 : addressLines[1] ? 646 : 664, 12);
+    drawText(page, `Date : ${formatInvoiceDate(invoice.date)}`, 418, 704, 12);
+    drawText(page, `Order ID : ${invoice.orderId}`, 418, 684, 12);
+  } else {
+    drawText(page, `Order ID : ${invoice.orderId}`, 39, 704, 12);
+    drawText(page, `Page ${pageNumber}`, 500, 704, 12);
+  }
+
+  drawRect(page, 39, 596, 519, 25, BRAND_GREEN);
+  drawText(page, "Design Particulars", 86, 606, 11);
+  drawText(page, "Qty", 266, 606, 11);
+  drawText(page, "Rate", 349, 606, 11);
+  drawText(page, "Price", 482, 606, 11);
+  drawFooter(page);
+}
+
+function drawFooter(page: PdfPage) {
+  drawText(page, "Ph : +91 9820734434", 38, 39, 9);
+  drawText(page, "E-mail : orders@atelier2901.com", 136, 39, 9);
+  drawText(page, "@Atelier_2901", 280, 39, 9);
+  drawText(page, "For ATELIER 2901", 462, 104, 11);
+  drawText(page, "Payal Shah", 476, 70, 11);
+  drawText(page, "Authorised Signatory", 455, 39, 11);
+}
+
+function addTotal(page: PdfPage, invoice: InvoiceData) {
+  drawText(page, "Products", 410, 196, 10);
+  drawText(page, invoice.productSubtotal === null ? "Price not set" : formatCurrency(invoice.productSubtotal), 475, 196, 10);
+  drawText(page, "Shipping", 410, 176, 10);
+  drawText(page, invoice.shippingCost === null ? "Price not set" : formatCurrency(invoice.shippingCost), 475, 176, 10);
+  drawRect(page, 39, 124, 519, 35, BRAND_GREEN);
+  drawText(page, "Subtotal", 56, 139, 12);
+  drawText(page, invoice.subtotal === null ? "Price not set" : formatCurrency(invoice.subtotal), 475, 139, 12);
+}
+
+function addInvoiceItem(page: PdfPage, item: InvoiceItem, y: number) {
+  const nameLines = wrapText(item.name, 42);
+  const detailLines = item.details.flatMap((detail) => wrapText(detail, 48));
+  const allLines = [...nameLines, ...detailLines];
+
+  allLines.forEach((line, index) => {
+    const size = index < nameLines.length ? 10 : 8;
+    drawText(page, line, 55, y - index * 11, size);
+  });
+
+  drawText(page, String(item.quantity), 271, y, 10);
+  drawText(page, item.unitPrice === null ? "Price not set" : formatCurrency(item.unitPrice), 331, y, 10);
+  drawText(page, item.lineTotal === null ? "Price not set" : formatCurrency(item.lineTotal), 466, y, 10);
+}
+
+function getInvoiceRowHeight(item: InvoiceItem) {
+  const lines = wrapText(item.name, 42).length +
+    item.details.flatMap((detail) => wrapText(detail, 48)).length;
+  return Math.max(28, lines * 11 + 10);
+}
+
+function buildInvoicePdf(invoice: InvoiceData): Buffer {
+  const pages: PdfPage[] = [];
+  let pageNumber = 1;
+  let page: PdfPage = { content: [] };
+  let cursorY = 566;
+
+  addInvoiceScaffold(page, invoice, pageNumber);
+
+  invoice.items.forEach((item) => {
+    const rowHeight = getInvoiceRowHeight(item);
+    if (cursorY - rowHeight < 178) {
+      pages.push(page);
+      pageNumber += 1;
+      page = { content: [] };
+      cursorY = 566;
+      addInvoiceScaffold(page, invoice, pageNumber);
+    }
+
+    addInvoiceItem(page, item, cursorY);
+    cursorY -= rowHeight;
+  });
+
+  addTotal(page, invoice);
+  pages.push(page);
+
+  return serializePdf(pages);
+}
+
+function serializePdf(pages: PdfPage[]) {
+  const objects: Buffer[] = [];
+  const addObject = (body: string | Buffer) => {
+    objects.push(Buffer.isBuffer(body) ? body : Buffer.from(body, "binary"));
+    return objects.length;
+  };
+
+  addObject("<< /Type /Catalog /Pages 2 0 R >>");
+  addObject("");
+  const fontId = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  let imageId = 0;
+  let alphaId = 0;
+
+  if (INVOICE_LOGO.alpha) {
+    alphaId = addObject(streamObject(
+      `<< /Type /XObject /Subtype /Image /Width ${INVOICE_LOGO.width} /Height ${INVOICE_LOGO.height} ` +
+      "/ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode",
+      INVOICE_LOGO.alpha
+    ));
+  }
+
+  imageId = addObject(streamObject(
+    `<< /Type /XObject /Subtype /Image /Width ${INVOICE_LOGO.width} /Height ${INVOICE_LOGO.height} ` +
+    `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode${alphaId ? ` /SMask ${alphaId} 0 R` : ""}`,
+    INVOICE_LOGO.rgb
+  ));
+
+  const pageIds: number[] = [];
+  pages.forEach((page) => {
+    const content = Buffer.from(page.content.join(""), "binary");
+    const contentId = addObject(streamObject("<<", content));
+    const pageId = addObject(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PDF_WIDTH} ${PDF_HEIGHT}] ` +
+      `/Resources << /Font << /F1 ${fontId} 0 R >> /XObject << /Logo ${imageId} 0 R >> >> ` +
+      `/Contents ${contentId} 0 R >>`
+    );
+    pageIds.push(pageId);
+  });
+
+  objects[1] = Buffer.from(
+    `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageIds.length} >>`,
+    "binary"
+  );
+
+  const chunks: Buffer[] = [Buffer.from("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n", "binary")];
+  const offsets = [0];
+
+  objects.forEach((body, index) => {
+    offsets.push(Buffer.concat(chunks).length);
+    chunks.push(Buffer.from(`${index + 1} 0 obj\n`, "binary"));
+    chunks.push(body);
+    chunks.push(Buffer.from("\nendobj\n", "binary"));
+  });
+
+  const xrefOffset = Buffer.concat(chunks).length;
+  chunks.push(Buffer.from(`xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`, "binary"));
+  offsets.slice(1).forEach((offset) => {
+    chunks.push(Buffer.from(`${String(offset).padStart(10, "0")} 00000 n \n`, "binary"));
+  });
+  chunks.push(Buffer.from(
+    `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`,
+    "binary"
+  ));
+
+  return Buffer.concat(chunks);
+}
+
+function streamObject(dictionaryStart: string, content: Buffer) {
+  return Buffer.concat([
+    Buffer.from(`${dictionaryStart} /Length ${content.length} >>\nstream\n`, "binary"),
+    content,
+    Buffer.from("\nendstream", "binary"),
+  ]);
 }
 
 function getDisplayOrderId(orderId: string) {
@@ -465,16 +1006,39 @@ app.post("/api/orders", async (req, res) => {
     const body = asRecord(req.body);
     const customer = asRecord(body.customer);
     const fullName = cleanHeaderText(customer.fullName ?? body.customerName, 80);
+    const address = normalizeCustomerAddress(customer.address ?? body.customerAddress);
     const email = cleanText(customer.email ?? body.customerEmail, 254).toLowerCase();
-    const phone = cleanText(customer.phone ?? body.customerPhone, 30);
+    const legacyPhone = cleanText(customer.phone ?? body.customerPhone, 30);
+    const legacyCountryCode = legacyPhone.match(/^\+[0-9]{1,4}(?:-[0-9]{1,4})?/)?.[0];
+    const phoneCountryCode = cleanPhoneCountryCode(customer.phoneCountryCode ?? body.phoneCountryCode ?? legacyCountryCode ?? "+91");
+    const phoneNumber = cleanText(
+      customer.phoneNumber ?? body.phoneNumber ?? legacyPhone.replace(/^\+[0-9]{1,4}(?:-[0-9]{1,4})?\s*/, ""),
+      24
+    );
+    const phone = `${phoneCountryCode} ${phoneNumber}`;
 
     if (!fullName) {
       return res.status(400).json({ ok: false, message: "Name is required." });
     }
+    if (!address.streetAddress1) {
+      return res.status(400).json({ ok: false, message: "Street address 1 is required." });
+    }
+    if (!address.city) {
+      return res.status(400).json({ ok: false, message: "City is required." });
+    }
+    if (!address.state) {
+      return res.status(400).json({ ok: false, message: "State is required." });
+    }
+    if (!address.country) {
+      return res.status(400).json({ ok: false, message: "Country is required." });
+    }
+    if (!address.zipCode) {
+      return res.status(400).json({ ok: false, message: "Zip code is required." });
+    }
     if (!email || !isValidEmail(email)) {
       return res.status(400).json({ ok: false, message: "Valid email is required." });
     }
-    if (!/^[0-9+\-()\s]{7,30}$/.test(phone)) {
+    if (!/^[0-9\-()\s]{5,24}$/.test(phoneNumber)) {
       return res.status(400).json({ ok: false, message: "Valid phone number is required." });
     }
 
@@ -484,10 +1048,12 @@ app.post("/api/orders", async (req, res) => {
     }
 
     const items = await Promise.all(rawItems.map(normalizeOrderItem));
-    const subtotal = items.reduce((sum, item) => sum + item.lineTotal, 0);
+    const productSubtotal = items.reduce((sum, item) => sum + item.lineTotal, 0);
+    const shippingCost = calculateShippingCost(address.city);
+    const subtotal = productSubtotal + shippingCost;
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
-    if (subtotal <= 0 || totalItems <= 0) {
+    if (productSubtotal <= 0 || totalItems <= 0) {
       return res.status(400).json({ ok: false, message: "Cart total is invalid." });
     }
 
@@ -496,12 +1062,17 @@ app.post("/api/orders", async (req, res) => {
 
     await orderRef.set({
       items,
+      productSubtotal,
+      shippingCost,
       subtotal,
       totalItems,
       displayId,
       customer: {
         fullName,
+        address,
         email,
+        phoneCountryCode,
+        phoneNumber,
         phone,
       },
       status: "pending_payment",
@@ -560,11 +1131,46 @@ export const onOrderCreated = onDocumentCreated(
     const orderId = cleanHeaderText(data.displayId, 20) || getDisplayOrderId(rawOrderId);
     const customerEmail = data.customer?.email;
     const customerName = data.customer?.fullName || "";
+    const rawCustomerAddress = data.customer?.address || "";
+    const customerAddress = getStoredCustomerAddress(rawCustomerAddress);
+    const customerAddressText = formatCustomerAddress(customerAddress, rawCustomerAddress);
     const customerPhone = data.customer?.phone || "";
 
     const items = Array.isArray(data.items) ? data.items : [];
-    const itemLines = formatOrderItems(items);
-    const subtotal = typeof data.subtotal === "number" ? data.subtotal : null;
+    const productSubtotal = typeof data.productSubtotal === "number" ?
+      data.productSubtotal :
+      items.reduce((sum: number, rawItem: unknown) => {
+        const item = asRecord(rawItem);
+        return sum + (typeof item.lineTotal === "number" ? item.lineTotal : 0);
+      }, 0);
+    const shippingCost = typeof data.shippingCost === "number" ?
+      data.shippingCost :
+      customerAddress ? calculateShippingCost(customerAddress.city) : null;
+    const subtotal = typeof data.subtotal === "number" ?
+      data.subtotal :
+      shippingCost === null ? productSubtotal : productSubtotal + shippingCost;
+    const productSubtotalText = productSubtotal === null ? "Price not set" : formatCurrency(productSubtotal);
+    const shippingText = shippingCost === null ? "Price not set" : formatCurrency(shippingCost);
+    const subtotalText = subtotal === null ? "Price not set" : formatCurrency(subtotal);
+    const productNames = formatStudioProductNames(items);
+    const invoice = buildInvoicePdf({
+      orderId,
+      customerName: cleanText(customerName, 80),
+      customerAddress,
+      customerAddressText,
+      customerEmail: cleanText(customerEmail, 254),
+      customerPhone: cleanText(customerPhone, 30),
+      items: normalizeInvoiceItems(items),
+      productSubtotal,
+      shippingCost,
+      subtotal,
+      date: getOrderDate(data.createdAt),
+    });
+    const invoiceAttachment = {
+      filename: `atelier2901-invoice-${orderId}.pdf`,
+      content: invoice.toString("base64"),
+      contentType: "application/pdf",
+    };
 
     const resend = getResendClient();
     const EMAIL_FROM = getEnvOrThrow("EMAIL_FROM");
@@ -575,6 +1181,18 @@ export const onOrderCreated = onDocumentCreated(
       from: EMAIL_FROM,
       to: STUDIO_EMAIL,
       subject: `New order: ${orderId}`,
+      attachments: [invoiceAttachment],
+      html: formatStudioProductHtml({
+        items,
+        orderId,
+        customerName,
+        customerEmail,
+        customerPhone,
+        productSubtotalText,
+        shippingText,
+        subtotalText,
+        notes: data.notes,
+      }),
       text:
 `A new order was placed.
 
@@ -582,11 +1200,19 @@ Order ID: ${orderId}
 Customer: ${customerName} <${customerEmail || "no email"}>
 Phone: ${customerPhone || "(not provided)"}
 
-Items:
-${itemLines || "- (no items found)"}
+Products:
+${productNames || "- (no products found)"}
+
+Product subtotal:
+${productSubtotalText}
+
+Shipping:
+${shippingText}
 
 Subtotal:
-${subtotal === null ? "Price not set" : formatCurrency(subtotal)}
+${subtotalText}
+
+The itemized invoice is attached as a PDF.
 
 Notes:
 ${data.notes || "(none)"}
@@ -599,17 +1225,23 @@ ${data.notes || "(none)"}
         from: EMAIL_FROM,
         to: String(customerEmail),
         subject: "We received your order — ATELIER 2901",
+        attachments: [invoiceAttachment],
         text:
 `Hi ${customerName || "there"},
 
 We've received your order (ID: ${orderId}).
 Our team will reach out shortly to confirm details.
 
-Items:
-${itemLines || "- (no items found)"}
+Product subtotal:
+${productSubtotalText}
+
+Shipping:
+${shippingText}
 
 Subtotal:
-${subtotal === null ? "Price not set" : formatCurrency(subtotal)}
+${subtotalText}
+
+Your itemized invoice is attached as a PDF.
 
 Thank you,
 ATELIER 2901

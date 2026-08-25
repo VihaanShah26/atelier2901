@@ -84,6 +84,7 @@ sketch
 
 ### Vite ###
 dist
+tmp/
 
 ### Windows ###
 # Windows thumbnail cache files
