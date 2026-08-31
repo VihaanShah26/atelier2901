@@ -3,10 +3,12 @@ import { onRequest } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { Resend } from "resend";
+import { randomUUID, timingSafeEqual } from "crypto";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { deflateSync, inflateSync } from "zlib";
@@ -37,6 +39,21 @@ const DEFAULT_ALLOWED_ORIGINS = [
 const MAX_ORDER_ITEMS = 25;
 const MAX_QUANTITY = 99;
 const PRODUCT_ID_PATTERN = /^[a-zA-Z0-9._-]{1,80}$/;
+const CATALOG_ID_PATTERN = /^[a-zA-Z0-9._-]{1,80}$/;
+const CATALOG_FIELD_PATTERN = /^[a-zA-Z0-9._-]{1,80}$/;
+
+const CATALOG_COLLECTIONS = new Set<string>([
+  "stationery_essential",
+  "stationery_premium",
+  "stationery_money",
+  "stationery_hampers",
+  "gifting_travel",
+  "gifting_coasters",
+  "gifting_wine",
+  "coffeetablebooks",
+  "invitations",
+  "hampers",
+]);
 
 class ApiError extends Error {
   readonly status: number;
@@ -82,7 +99,7 @@ app.use((_req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: "20kb", type: "application/json" }));
+app.use(express.json({ limit: "8mb", type: "application/json" }));
 
 // If your frontend calls same domain, CORS is not needed, but safe to allow your site:
 app.use(cors({
@@ -933,6 +950,120 @@ function handleApiError(err: unknown, res: Response, logLabel: string) {
   return res.status(500).json({ ok: false, message: "Server error." });
 }
 
+function validateAdminPassword(value: unknown) {
+  const expected = getEnvOrThrow("ADMIN_PAGE_PASSWORD");
+  if (typeof value !== "string" || !value) return false;
+
+  const submittedBuffer = Buffer.from(value);
+  const expectedBuffer = Buffer.from(expected);
+  if (submittedBuffer.length !== expectedBuffer.length) return false;
+  return timingSafeEqual(submittedBuffer, expectedBuffer);
+}
+
+function requireAdmin(req: Request) {
+  if (!validateAdminPassword(asRecord(req.body).password)) {
+    throw new ApiError(401, "Invalid admin password.");
+  }
+}
+
+function assertCatalogCollection(value: unknown) {
+  if (typeof value !== "string" || !CATALOG_COLLECTIONS.has(value)) {
+    throw new ApiError(400, "Invalid catalog collection.");
+  }
+  return value;
+}
+
+function assertCatalogItemId(value: unknown) {
+  if (typeof value !== "string" || !CATALOG_ID_PATTERN.test(value)) {
+    throw new ApiError(400, "Invalid product id.");
+  }
+  return value;
+}
+
+function sanitizeCatalogValue(value: unknown, depth = 0): unknown {
+  if (depth > 5) throw new ApiError(400, "Catalog data is too deeply nested.");
+  if (value === null || typeof value === "boolean") return value;
+
+  if (typeof value === "string") {
+    return cleanText(value, 5000);
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return null;
+    return value;
+  }
+  if (Array.isArray(value)) {
+    if (value.length > 100) throw new ApiError(400, "Catalog array is too large.");
+    return value.map((entry) => sanitizeCatalogValue(entry, depth + 1));
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [key, nestedValue] of Object.entries(value)) {
+      if (!CATALOG_FIELD_PATTERN.test(key)) continue;
+      out[key] = sanitizeCatalogValue(nestedValue, depth + 1);
+    }
+    return out;
+  }
+  return null;
+}
+
+function sanitizeCatalogPayload(value: unknown) {
+  const rawPayload = asRecord(value);
+  const payload: Record<string, unknown> = {};
+
+  for (const [key, rawValue] of Object.entries(rawPayload)) {
+    if (!CATALOG_FIELD_PATTERN.test(key)) continue;
+    payload[key] = sanitizeCatalogValue(rawValue);
+  }
+
+  const name = cleanText(payload.name, 200);
+  if (!name) throw new ApiError(400, "Product name is required.");
+  payload.name = name;
+
+  if ("img" in payload) {
+    payload.img = cleanText(payload.img, 5000);
+  }
+  if ("price" in payload && payload.price !== null && typeof payload.price !== "number") {
+    payload.price = Number(payload.price);
+  }
+  if ("personalizedPrice" in payload &&
+      payload.personalizedPrice !== null &&
+      typeof payload.personalizedPrice !== "number") {
+    payload.personalizedPrice = Number(payload.personalizedPrice);
+  }
+
+  payload.updatedAt = FieldValue.serverTimestamp();
+  return payload;
+}
+
+function getStorageFolder(collectionId: string) {
+  if (collectionId.startsWith("stationery")) return "stationery";
+  if (collectionId.startsWith("gifting")) return "gifting";
+  if (collectionId === "coffeetablebooks") return "coffeetablebooks";
+  if (collectionId === "invitations") return "invitations";
+  if (collectionId === "hampers") return "hampers";
+  return collectionId;
+}
+
+function safeUploadName(value: unknown) {
+  const fileName = typeof value === "string" ? value : "image";
+  return fileName.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "").slice(0, 120) || "image";
+}
+
+function parseDataUrl(value: unknown) {
+  if (typeof value !== "string") {
+    throw new ApiError(400, "Image is required.");
+  }
+  const match = value.match(/^data:(image\/(?:png|jpe?g|webp|gif));base64,([a-zA-Z0-9+/=]+)$/);
+  if (!match) {
+    throw new ApiError(400, "Only PNG, JPG, WebP, or GIF uploads are allowed.");
+  }
+  const buffer = Buffer.from(match[2], "base64");
+  if (buffer.length > 6 * 1024 * 1024) {
+    throw new ApiError(400, "Image must be under 6 MB.");
+  }
+  return { contentType: match[1], buffer };
+}
+
 // ---- POST /api/contact ----
 app.post("/api/contact", async (req, res) => {
   try {
@@ -991,6 +1122,106 @@ ${safePhone || "(not provided)"}
     return res.status(200).json({ ok: true });
   } catch (err) {
     return handleApiError(err, res, "contact error");
+  }
+});
+
+// ---- POST /api/admin/verify ----
+app.post("/api/admin/verify", async (req, res) => {
+  try {
+    requireAdmin(req);
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    return handleApiError(err, res, "admin verify error");
+  }
+});
+
+// ---- POST /api/admin/catalog/save ----
+app.post("/api/admin/catalog/save", async (req, res) => {
+  try {
+    const ip = getClientIp(req);
+    if (!rateLimit(`admin-save:${ip}`, 60)) {
+      return res.status(429).json({ ok: false, message: "Too many requests. Please try again later." });
+    }
+
+    requireAdmin(req);
+    const body = asRecord(req.body);
+    const collectionId = assertCatalogCollection(body.collectionId);
+    const itemId = assertCatalogItemId(body.itemId);
+    const payload = sanitizeCatalogPayload(body.data);
+
+    await db.collection(collectionId).doc(itemId).set(payload, { merge: true });
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    return handleApiError(err, res, "admin catalog save error");
+  }
+});
+
+// ---- POST /api/admin/catalog/create ----
+app.post("/api/admin/catalog/create", async (req, res) => {
+  try {
+    const ip = getClientIp(req);
+    if (!rateLimit(`admin-create:${ip}`, 30)) {
+      return res.status(429).json({ ok: false, message: "Too many requests. Please try again later." });
+    }
+
+    requireAdmin(req);
+    const body = asRecord(req.body);
+    const collectionId = assertCatalogCollection(body.collectionId);
+    const itemId = assertCatalogItemId(body.itemId);
+    const payload = sanitizeCatalogPayload(body.data);
+
+    const itemRef = db.collection(collectionId).doc(itemId);
+    const existing = await itemRef.get();
+    if (existing.exists) {
+      throw new ApiError(409, "A product with this id already exists.");
+    }
+
+    await itemRef.set({
+      ...payload,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return res.status(201).json({ ok: true, itemId });
+  } catch (err) {
+    return handleApiError(err, res, "admin catalog create error");
+  }
+});
+
+// ---- POST /api/admin/catalog/upload ----
+app.post("/api/admin/catalog/upload", async (req, res) => {
+  try {
+    const ip = getClientIp(req);
+    if (!rateLimit(`admin-upload:${ip}`, 30)) {
+      return res.status(429).json({ ok: false, message: "Too many requests. Please try again later." });
+    }
+
+    requireAdmin(req);
+    const body = asRecord(req.body);
+    const collectionId = assertCatalogCollection(body.collectionId);
+    const { contentType, buffer } = parseDataUrl(body.dataUrl);
+    const folder = getStorageFolder(collectionId);
+    const fileName = safeUploadName(body.fileName);
+    const path = `${folder}/${Date.now()}-${fileName}`;
+    const bucket = getStorage().bucket();
+    const file = bucket.file(path);
+    const downloadToken = randomUUID();
+
+    await file.save(buffer, {
+      contentType,
+      metadata: {
+        cacheControl: "public, max-age=31536000",
+        metadata: {
+          firebaseStorageDownloadTokens: downloadToken,
+        },
+      },
+      resumable: false,
+    });
+
+    return res.status(201).json({
+      ok: true,
+      url: `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(path)}?alt=media&token=${downloadToken}`,
+    });
+  } catch (err) {
+    return handleApiError(err, res, "admin catalog upload error");
   }
 });
 
@@ -1110,7 +1341,7 @@ app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
 export const api = onRequest(
   {
     region: "us-central1",
-    secrets: ["RESEND_API_KEY", "EMAIL_FROM", "STUDIO_EMAIL"],
+    secrets: ["RESEND_API_KEY", "EMAIL_FROM", "STUDIO_EMAIL", "ADMIN_PAGE_PASSWORD"],
   },
   app
 );

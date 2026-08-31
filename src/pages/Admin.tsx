@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import PageLayout from '@/components/atelier/PageLayout';
-import { db, storage } from '@/lib/firebase';
-import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { db } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { postJSON } from '@/lib/api';
 
 type SizeOption = { label: string; price: number | ''; personalizedPrice?: number | '' | null };
 type FieldType = 'string' | 'number' | 'boolean' | 'json';
 
 type AdminItem = {
   id: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
 };
 
 type ItemStatus = {
@@ -43,7 +43,13 @@ const COLLECTIONS = [
 ];
 
 const RESERVED_FIELDS = new Set(['name', 'img', 'price', 'personalizedPrice', 'sizes']);
-const KNOWN_OPTION_FIELDS: Array<{ key: string; label: string; type: FieldType; defaultValue: any }> = [
+type AdminActionResponse = {
+  url?: string;
+};
+
+const ADMIN_PASSWORD_SESSION_KEY = 'admin-password';
+
+const KNOWN_OPTION_FIELDS: Array<{ key: string; label: string; type: FieldType; defaultValue: unknown }> = [
   { key: 'goldFoil', label: 'Gold Foil', type: 'boolean', defaultValue: false },
 ];
 const KNOWN_OPTION_FIELD_LABELS = Object.fromEntries(
@@ -62,7 +68,7 @@ const DEFAULT_NEW_PRODUCT: NewProductDraft = {
   goldFoil: false,
 };
 
-const getFieldType = (value: any): FieldType => {
+const getFieldType = (value: unknown): FieldType => {
   if (value === null || value === undefined) return 'string';
   if (Array.isArray(value) || typeof value === 'object') return 'json';
   if (typeof value === 'boolean') return 'boolean';
@@ -71,15 +77,11 @@ const getFieldType = (value: any): FieldType => {
 };
 
 export default function Admin() {
-  const adminPassword =
-    (import.meta.env.VITE_ADMIN_PAGE_PASSWORD || undefined) ||
-    (import.meta.env.ADMIN_PAGE_PASSWORD || undefined) ||
-    '';
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [itemsByCollection, setItemsByCollection] = useState<Record<string, AdminItem[]>>({});
-  const [drafts, setDrafts] = useState<Record<string, Record<string, any>>>({});
+  const [drafts, setDrafts] = useState<Record<string, Record<string, unknown>>>({});
   const [fieldTypes, setFieldTypes] = useState<Record<string, Record<string, FieldType>>>({});
   const [statusByItem, setStatusByItem] = useState<Record<string, ItemStatus>>({});
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -88,18 +90,17 @@ export default function Admin() {
   const [newProductStatus, setNewProductStatus] = useState<ItemStatus>({ status: 'idle' });
 
   useEffect(() => {
-    if (!adminPassword) return;
-    const stored = sessionStorage.getItem('admin-auth');
-    if (stored === 'true') {
+    const stored = sessionStorage.getItem(ADMIN_PASSWORD_SESSION_KEY);
+    if (stored) {
       setIsAuthorized(true);
     }
-  }, [adminPassword]);
+  }, []);
 
   useEffect(() => {
-    if (!isAuthorized || !adminPassword) return;
+    if (!isAuthorized) return;
     const loadData = async () => {
       const nextItems: Record<string, AdminItem[]> = {};
-      const nextDrafts: Record<string, Record<string, any>> = {};
+      const nextDrafts: Record<string, Record<string, unknown>> = {};
       const nextTypes: Record<string, Record<string, FieldType>> = {};
 
       await Promise.all(
@@ -112,7 +113,7 @@ export default function Admin() {
 
             const itemKey = `${collectionInfo.id}/${docSnap.id}`;
             const types: Record<string, FieldType> = {};
-            const draft: Record<string, any> = {};
+            const draft: Record<string, unknown> = {};
 
             Object.entries(data).forEach(([key, value]) => {
               const type = getFieldType(value);
@@ -149,21 +150,26 @@ export default function Admin() {
               price: draft.price ?? '',
               personalizedPrice: draft.personalizedPrice ?? '',
               sizes: Array.isArray(data.sizes)
-                ? data.sizes.map((size: any) => ({
-                    label: typeof size?.label === 'string' ? size.label : '',
-                    price:
-                      typeof size?.price === 'number'
-                        ? size.price
-                        : size?.price === null || size?.price === undefined || size?.price === ''
-                          ? ''
-                          : Number(size?.price),
-                    personalizedPrice:
-                      typeof size?.personalizedPrice === 'number'
-                        ? size.personalizedPrice
-                        : size?.personalizedPrice === null || size?.personalizedPrice === undefined || size?.personalizedPrice === ''
-                          ? ''
-                          : Number(size?.personalizedPrice),
-                  }))
+                ? data.sizes.map((rawSize: unknown) => {
+                    const size = rawSize && typeof rawSize === 'object' ? rawSize as Record<string, unknown> : {};
+                    return {
+                      label: typeof size.label === 'string' ? size.label : '',
+                      price:
+                        typeof size.price === 'number'
+                          ? size.price
+                          : size.price === null || size.price === undefined || size.price === ''
+                            ? ''
+                            : Number(size.price),
+                      personalizedPrice:
+                        typeof size.personalizedPrice === 'number'
+                          ? size.personalizedPrice
+                          : size.personalizedPrice === null ||
+                              size.personalizedPrice === undefined ||
+                              size.personalizedPrice === ''
+                            ? ''
+                            : Number(size.personalizedPrice),
+                    };
+                  })
                 : [],
               ...Object.fromEntries(
                 Object.entries(draft).filter(([key]) => !RESERVED_FIELDS.has(key))
@@ -181,25 +187,30 @@ export default function Admin() {
     };
 
     loadData();
-  }, [adminPassword, isAuthorized]);
+  }, [isAuthorized]);
 
-  const handlePasswordSubmit = (event: React.FormEvent) => {
+  const handlePasswordSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!adminPassword) {
-      setPasswordError('Admin password is not configured.');
+    const password = passwordInput.trim();
+    if (!password) {
+      setPasswordError('Enter the admin password.');
       return;
     }
-    if (passwordInput === adminPassword) {
-      sessionStorage.setItem('admin-auth', 'true');
+
+    const result = await postJSON('/api/admin/verify', { password });
+    if (result.ok) {
+      sessionStorage.setItem(ADMIN_PASSWORD_SESSION_KEY, password);
       setIsAuthorized(true);
       setPasswordError('');
       setPasswordInput('');
       return;
     }
-    setPasswordError('Incorrect password.');
+    setPasswordError(result.message || 'Incorrect password.');
   };
 
-  const updateDraft = (itemKey: string, key: string, value: any) => {
+  const getAdminPassword = () => sessionStorage.getItem(ADMIN_PASSWORD_SESSION_KEY) || '';
+
+  const updateDraft = (itemKey: string, key: string, value: unknown) => {
     setDrafts((prev) => ({
       ...prev,
       [itemKey]: {
@@ -253,14 +264,13 @@ export default function Admin() {
     setNewProductStatus({ status: 'idle' });
   };
 
-  const getStorageFolder = (collectionId: string) => {
-    if (collectionId.startsWith('stationery')) return 'stationery';
-    if (collectionId.startsWith('gifting')) return 'gifting';
-    if (collectionId === 'coffeetablebooks') return 'coffeetablebooks';
-    if (collectionId === 'invitations') return 'invitations';
-    if (collectionId === 'hampers') return 'hampers';
-    return collectionId;
-  };
+  const fileToDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(reader.error || new Error('Unable to read image.'));
+      reader.readAsDataURL(file);
+    });
 
   const incrementStringId = (value: string) => {
     const match = value.match(/^(.*?)(\d+)$/);
@@ -319,17 +329,29 @@ export default function Admin() {
     setNewProductStatus({ status: 'saving' });
 
     try {
-      const folder = getStorageFolder(newProductDraft.collectionId);
-      const safeName = file.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '');
-      const uploadPath = `${folder}/${Date.now()}-${safeName}`;
-      const storageRef = ref(storage, uploadPath);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const dataUrl = await fileToDataUrl(file);
+      const result = await postJSON<AdminActionResponse>(
+        '/api/admin/catalog/upload',
+        {
+          password: getAdminPassword(),
+          collectionId: newProductDraft.collectionId,
+          fileName: file.name,
+          dataUrl,
+        },
+        30000
+      );
+      if (!result.ok || !result.data?.url) {
+        throw new Error(result.message || 'Image upload failed.');
+      }
+      const url = result.data.url;
       const nextImg = newProductDraft.img.trim() ? `${newProductDraft.img.trim()}\n${url}` : url;
       updateNewProductDraft('img', nextImg);
       setNewProductStatus({ status: 'saved', message: 'Image uploaded.' });
-    } catch {
-      setNewProductStatus({ status: 'error', message: 'Image upload failed.' });
+    } catch (error) {
+      setNewProductStatus({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Image upload failed.',
+      });
     }
   };
 
@@ -375,7 +397,7 @@ export default function Admin() {
         })
         .filter((size: SizeOption) => size.label && Number.isFinite(size.price));
 
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         name,
         subtitle: subtitle || null,
         img,
@@ -385,7 +407,15 @@ export default function Admin() {
         goldFoil: newProductDraft.goldFoil,
       };
 
-      await setDoc(doc(db, collectionId, newId), payload);
+      const result = await postJSON('/api/admin/catalog/create', {
+        password: getAdminPassword(),
+        collectionId,
+        itemId: newId,
+        data: payload,
+      });
+      if (!result.ok) {
+        throw new Error(result.message || 'Create failed.');
+      }
 
       setItemsByCollection((prev) => ({
         ...prev,
@@ -393,8 +423,11 @@ export default function Admin() {
       }));
       setNewProductDraft({ ...DEFAULT_NEW_PRODUCT, collectionId });
       setNewProductStatus({ status: 'saved', message: `Created product ${newId}.` });
-    } catch {
-      setNewProductStatus({ status: 'error', message: 'Create failed. Check the fields and try again.' });
+    } catch (error) {
+      setNewProductStatus({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Create failed. Check the fields and try again.',
+      });
     }
   };
 
@@ -409,24 +442,35 @@ export default function Admin() {
     setStatusByItem((prev) => ({ ...prev, [itemKey]: { status: 'saving' } }));
 
     try {
-      const folder = getStorageFolder(collectionId);
-      const safeName = file.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '');
-      const uploadPath = `${folder}/${Date.now()}-${safeName}`;
-      const storageRef = ref(storage, uploadPath);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const dataUrl = await fileToDataUrl(file);
+      const result = await postJSON<AdminActionResponse>(
+        '/api/admin/catalog/upload',
+        {
+          password: getAdminPassword(),
+          collectionId,
+          fileName: file.name,
+          dataUrl,
+        },
+        30000
+      );
+      if (!result.ok || !result.data?.url) {
+        throw new Error(result.message || 'Image upload failed.');
+      }
+      const url = result.data.url;
       const existing = String(drafts[itemKey]?.img ?? '').trim();
       const nextImg = existing ? `${existing}\n${url}` : url;
       updateDraft(itemKey, 'img', nextImg);
-      await updateDoc(doc(db, collectionId, itemId), { img: nextImg });
       setStatusByItem((prev) => ({
         ...prev,
-        [itemKey]: { status: 'saved', message: 'Image uploaded.' },
+        [itemKey]: { status: 'idle', message: 'Image uploaded. Press Save to keep it.' },
       }));
     } catch (error) {
       setStatusByItem((prev) => ({
         ...prev,
-        [itemKey]: { status: 'error', message: 'Image upload failed.' },
+        [itemKey]: {
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Image upload failed.',
+        },
       }));
     }
   };
@@ -490,7 +534,7 @@ export default function Admin() {
 
     setStatusByItem((prev) => ({ ...prev, [itemKey]: { status: 'saving' } }));
 
-    const payload: Record<string, any> = {};
+    const payload: Record<string, unknown> = {};
     const reserved = ['name', 'img', 'price', 'personalizedPrice', 'sizes'];
 
     payload.name = String(draft.name ?? '');
@@ -544,7 +588,15 @@ export default function Admin() {
     }
 
     try {
-      await updateDoc(doc(db, collectionId, itemId), payload);
+      const result = await postJSON('/api/admin/catalog/save', {
+        password: getAdminPassword(),
+        collectionId,
+        itemId,
+        data: payload,
+      });
+      if (!result.ok) {
+        throw new Error(result.message || 'Save failed.');
+      }
       setStatusByItem((prev) => ({
         ...prev,
         [itemKey]: { status: 'saved' },
@@ -552,7 +604,7 @@ export default function Admin() {
     } catch (error) {
       setStatusByItem((prev) => ({
         ...prev,
-        [itemKey]: { status: 'error', message: 'Save failed.' },
+        [itemKey]: { status: 'error', message: error instanceof Error ? error.message : 'Save failed.' },
       }));
     }
   };

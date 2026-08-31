@@ -64,6 +64,16 @@ This project is built with:
 
 Simply open [Lovable](https://lovable.dev/projects/09a14ae7-bd4a-415b-b22e-66bbeb1a9240) and click on Share -> Publish.
 
+## Firebase admin catalog updates
+
+The admin product editor saves catalog changes through Firebase Functions. Before deploying the `api` function, set the admin password as a Firebase secret:
+
+```sh
+firebase functions:secrets:set ADMIN_PAGE_PASSWORD
+```
+
+Deploy both the function and hosting build after changing admin or product-management code.
+
 ## Can I connect a custom domain to my Lovable project?
 
 Yes, you can!
