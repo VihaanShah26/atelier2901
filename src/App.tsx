@@ -14,6 +14,7 @@ import Hampers from "./pages/Hampers";
 import AtelierAbout from "./pages/AtelierAbout";
 import AtelierContact from "./pages/AtelierContact";
 import Cart from "./pages/Cart";
+import PaymentReturn from "./pages/PaymentReturn";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
 
@@ -41,6 +42,10 @@ function App() {
               <Route path="/about" element={<AtelierAbout />} />
               <Route path="/contact" element={<AtelierContact />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/payments/return" element={<PaymentReturn />} />
+              <Route path="/payments/return/*" element={<PaymentReturn />} />
+              <Route path="/payment/return" element={<PaymentReturn />} />
+              <Route path="/payment/return/*" element={<PaymentReturn />} />
               <Route
                 path="/admin"
                 element={

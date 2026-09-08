@@ -1,6 +1,6 @@
 // import * as functions from "firebase-functions/v2";
 import { onRequest } from "firebase-functions/v2/https";
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
@@ -8,7 +8,7 @@ import { getStorage } from "firebase-admin/storage";
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { Resend } from "resend";
-import { randomUUID, timingSafeEqual } from "crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { deflateSync, inflateSync } from "zlib";
@@ -41,6 +41,8 @@ const MAX_QUANTITY = 99;
 const PRODUCT_ID_PATTERN = /^[a-zA-Z0-9._-]{1,80}$/;
 const CATALOG_ID_PATTERN = /^[a-zA-Z0-9._-]{1,80}$/;
 const CATALOG_FIELD_PATTERN = /^[a-zA-Z0-9._-]{1,80}$/;
+const HDFC_RESELLER_ID = "hdfc_reseller";
+const DEFAULT_HDFC_RETURN_URL = "https://atelier2901.com/payments/return";
 
 const CATALOG_COLLECTIONS = new Set<string>([
   "stationery_essential",
@@ -254,6 +256,42 @@ type InvoiceData = {
   shippingCost: number | null;
   subtotal: number | null;
   date: Date;
+};
+
+type NormalizedOrderItem = {
+  id: string;
+  productId: string;
+  category: string;
+  name: string;
+  img: string;
+  quantity: number;
+  personalize: "yes" | "no";
+  goldFoil: "yes" | "no" | null;
+  price: number;
+  lineTotal: number;
+  greeting: string | null;
+  personalizationName: string | null;
+  personalizationDetails: Array<{
+    set: number;
+    greeting: string | null;
+    name: string | null;
+  }>;
+  initials: string | null;
+  size: string | null;
+};
+
+type HdfcOrderStatus = {
+  order_id?: string;
+  status?: string;
+  status_id?: number;
+  amount?: number | string;
+  txn_id?: string;
+  txn_uuid?: string;
+  payment_method_type?: string;
+  payment_method?: string;
+  payment_gateway_response?: unknown;
+  txn_detail?: unknown;
+  [key: string]: unknown;
 };
 
 const PDF_WIDTH = 597.863;
@@ -799,6 +837,242 @@ function getDisplayOrderId(orderId: string) {
   return orderId.trim().slice(-6).toUpperCase();
 }
 
+function getHdfcBaseUrl() {
+  return getEnvOrThrow("HDFC_SMARTGATEWAY_BASE_URL").replace(/\/+$/, "");
+}
+
+function getHdfcBasicAuthorization() {
+  const apiKey = getEnvOrThrow("HDFC_SMARTGATEWAY_API_KEY").trim();
+  if (apiKey.toLowerCase().startsWith("basic ")) return apiKey;
+  return `Basic ${Buffer.from(apiKey).toString("base64")}`;
+}
+
+function getHdfcMerchantId() {
+  return getEnvOrThrow("HDFC_SMARTGATEWAY_MERCHANT_ID").trim();
+}
+
+function getHdfcPaymentPageClientId() {
+  return getEnvOrThrow("HDFC_SMARTGATEWAY_PAYMENT_PAGE_CLIENT_ID").trim();
+}
+
+function getHdfcReturnUrl() {
+  return (process.env.HDFC_SMARTGATEWAY_RETURN_URL || DEFAULT_HDFC_RETURN_URL).trim();
+}
+
+function generateHdfcOrderId() {
+  const time = Date.now().toString(36).toUpperCase();
+  const random = randomUUID().replace(/-/g, "").slice(0, 6).toUpperCase();
+  return `A29${time}${random}`.slice(0, 20);
+}
+
+function normalizeAmountForHdfc(amount: number) {
+  return amount.toFixed(2);
+}
+
+function parseHdfcAmount(value: unknown) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? Math.round(parsed * 100) / 100 : null;
+}
+
+function getCustomerIdForHdfc(email: string, phoneNumber: string) {
+  const cleanedPhone = phoneNumber.replace(/\D/g, "");
+  if (cleanedPhone) return `C${cleanedPhone.slice(-14)}`;
+  return `C${Buffer.from(email).toString("hex").slice(0, 14).toUpperCase()}`;
+}
+
+function splitCustomerName(fullName: string) {
+  const parts = fullName.split(/\s+/).filter(Boolean);
+  return {
+    firstName: cleanHeaderText(parts[0] || fullName, 40),
+    lastName: cleanHeaderText(parts.slice(1).join(" ") || "Customer", 40),
+  };
+}
+
+function getHdfcHeaders(customerId: string) {
+  return {
+    "Authorization": getHdfcBasicAuthorization(),
+    "Content-Type": "application/json",
+    "x-merchantid": getHdfcMerchantId(),
+    "x-customerid": customerId,
+    "x-resellerid": HDFC_RESELLER_ID,
+  };
+}
+
+async function parseHdfcJson(res: globalThis.Response) {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return { raw: text };
+  }
+}
+
+async function createHdfcSession(params: {
+  hdfcOrderId: string;
+  amount: number;
+  customerId: string;
+  email: string;
+  phoneNumber: string;
+  fullName: string;
+  localOrderId: string;
+}) {
+  const { firstName, lastName } = splitCustomerName(params.fullName);
+  const res = await fetch(`${getHdfcBaseUrl()}/session`, {
+    method: "POST",
+    headers: getHdfcHeaders(params.customerId),
+    body: JSON.stringify({
+      order_id: params.hdfcOrderId,
+      amount: normalizeAmountForHdfc(params.amount),
+      customer_id: params.customerId,
+      customer_email: params.email,
+      customer_phone: params.phoneNumber.replace(/\D/g, ""),
+      payment_page_client_id: getHdfcPaymentPageClientId(),
+      action: "paymentPage",
+      currency: "INR",
+      return_url: getHdfcReturnUrl(),
+      description: "Complete your ATELIER 2901 payment",
+      first_name: firstName,
+      last_name: lastName,
+      udf6: params.localOrderId,
+    }),
+  });
+  const data = await parseHdfcJson(res);
+
+  if (!res.ok) {
+    const message = cleanText(data.error_message || data.error_code, 240) ||
+      "Could not start payment. Please try again.";
+    throw new ApiError(res.status >= 400 && res.status < 500 ? 400 : 502, message);
+  }
+
+  const paymentLinks = asRecord(data.payment_links);
+  const webLink = cleanText(paymentLinks.web, 1000);
+  if (!webLink || !/^https:\/\//i.test(webLink)) {
+    throw new ApiError(502, "Payment link was not returned by SmartGateway.");
+  }
+
+  return {
+    raw: data,
+    paymentLink: webLink,
+    gatewayOrderId: cleanText(data.id, 120),
+    expiry: cleanText(paymentLinks.expiry, 80),
+    status: cleanText(data.status, 40) || "NEW",
+  };
+}
+
+async function fetchHdfcOrderStatus(hdfcOrderId: string, customerId: string) {
+  const res = await fetch(`${getHdfcBaseUrl()}/orders/${encodeURIComponent(hdfcOrderId)}`, {
+    method: "GET",
+    headers: getHdfcHeaders(customerId),
+  });
+  const data = await parseHdfcJson(res);
+
+  if (!res.ok) {
+    const message = cleanText(data.error_message || data.error_code, 240) ||
+      "Could not verify payment status.";
+    throw new ApiError(res.status >= 400 && res.status < 500 ? 400 : 502, message);
+  }
+
+  return data as HdfcOrderStatus;
+}
+
+function isPaidHdfcStatus(status: unknown) {
+  return cleanText(status, 40).toUpperCase() === "CHARGED";
+}
+
+function isPendingHdfcStatus(status: unknown) {
+  return ["NEW", "PENDING_VBV", "AUTHORIZING", "STARTED"].includes(cleanText(status, 40).toUpperCase());
+}
+
+function mapHdfcStatusToLocal(status: unknown) {
+  const hdfcStatus = cleanText(status, 40).toUpperCase();
+  if (hdfcStatus === "CHARGED") return "paid";
+  if (["PENDING_VBV", "AUTHORIZING", "STARTED", "NEW"].includes(hdfcStatus)) return "payment_pending";
+  if (["AUTHORIZED", "CAPTURE_INITIATED"].includes(hdfcStatus)) return "authorized";
+  if (["AUTO_REFUNDED"].includes(hdfcStatus)) return "refunded";
+  return "payment_failed";
+}
+
+function hdfcPercentEncode(value: string) {
+  return encodeURIComponent(value).replace(/[!'()*]/g, (char) =>
+    `%${char.charCodeAt(0).toString(16).toUpperCase()}`
+  );
+}
+
+function verifyReturnedHdfcSignature(params: Record<string, unknown>) {
+  const signature = cleanText(params.signature, 500);
+  if (!signature) return true;
+  const algorithm = cleanText(params.signature_algorithm, 80).toUpperCase();
+  if (algorithm && algorithm !== "HMAC-SHA256") {
+    throw new ApiError(400, "Unsupported payment response signature.");
+  }
+  const secretKey = getEnvOrThrow("HDFC_SMARTGATEWAY_RESPONSE_KEY");
+  const entries = Object.entries(params)
+    .filter(([key]) => key !== "signature" && key !== "signature_algorithm")
+    .map(([key, value]) => [
+      hdfcPercentEncode(key),
+      hdfcPercentEncode(cleanText(value, 1000)),
+    ] as const)
+    .sort(([leftKey], [rightKey]) => leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0);
+  const canonical = entries.map(([key, value]) => `${key}=${value}`).join("&");
+  const encodedCanonical = hdfcPercentEncode(canonical);
+  const expected = encodeURIComponent(
+    createHmac("sha256", secretKey)
+      .update(encodedCanonical)
+      .digest("base64")
+  );
+  const submitted = hdfcPercentEncode(decodeURIComponent(signature));
+  const submittedBuffer = Buffer.from(submitted);
+  const expectedBuffer = Buffer.from(expected);
+  return submittedBuffer.length === expectedBuffer.length && timingSafeEqual(submittedBuffer, expectedBuffer);
+}
+
+function verifyHdfcWebhookAuth(req: Request) {
+  const auth = req.get("authorization") || "";
+  const match = auth.match(/^Basic\s+(.+)$/i);
+  if (!match) throw new ApiError(401, "Webhook authorization is required.");
+  const decoded = Buffer.from(match[1], "base64").toString("utf8");
+  const separatorIndex = decoded.indexOf(":");
+  const username = separatorIndex >= 0 ? decoded.slice(0, separatorIndex) : decoded;
+  const password = separatorIndex >= 0 ? decoded.slice(separatorIndex + 1) : "";
+  const expectedUsername = getEnvOrThrow("HDFC_SMARTGATEWAY_WEBHOOK_USERNAME");
+  const expectedPassword = getEnvOrThrow("HDFC_SMARTGATEWAY_WEBHOOK_PASSWORD");
+  const submitted = Buffer.from(`${username}:${password}`);
+  const expected = Buffer.from(`${expectedUsername}:${expectedPassword}`);
+  if (submitted.length !== expected.length || !timingSafeEqual(submitted, expected)) {
+    throw new ApiError(401, "Invalid webhook authorization.");
+  }
+}
+
+function getHdfcStatusUpdate(status: HdfcOrderStatus) {
+  const localStatus = mapHdfcStatusToLocal(status.status);
+  const update: Record<string, unknown> = {
+    status: mapHdfcStatusToLocal(status.status),
+    hdfc: {
+      orderId: cleanText(status.order_id, 80),
+      gatewayOrderId: cleanText(status.id, 120),
+      status: cleanText(status.status, 40),
+      statusId: typeof status.status_id === "number" ? status.status_id : null,
+      amount: parseHdfcAmount(status.amount),
+      txnId: cleanText(status.txn_id, 160),
+      txnUuid: cleanText(status.txn_uuid, 160),
+      paymentMethodType: cleanText(status.payment_method_type, 80),
+      paymentMethod: cleanText(status.payment_method, 80),
+      paymentGatewayResponse: status.payment_gateway_response || null,
+      txnDetail: status.txn_detail || null,
+      rawStatus: status,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+  if (localStatus === "paid") {
+    update.paidAt = FieldValue.serverTimestamp();
+  } else if (!isPendingHdfcStatus(status.status)) {
+    update.paymentFailedAt = FieldValue.serverTimestamp();
+  }
+  return update;
+}
+
 function isStationeryProduct(category: string) {
   return [
     "stationery_essential",
@@ -875,7 +1149,7 @@ function resolveServerPrice(params: {
   };
 }
 
-async function normalizeOrderItem(rawItem: unknown) {
+async function normalizeOrderItem(rawItem: unknown): Promise<NormalizedOrderItem> {
   const item = asRecord(rawItem);
   const category = cleanText(item.category, 80);
   if (!ORDERABLE_COLLECTIONS.has(category)) {
@@ -1288,8 +1562,10 @@ app.post("/api/orders", async (req, res) => {
       return res.status(400).json({ ok: false, message: "Cart total is invalid." });
     }
 
-    const orderRef = db.collection("orders").doc();
-    const displayId = getDisplayOrderId(orderRef.id);
+    const hdfcOrderId = generateHdfcOrderId();
+    const orderRef = db.collection("orders").doc(hdfcOrderId);
+    const displayId = getDisplayOrderId(hdfcOrderId);
+    const hdfcCustomerId = getCustomerIdForHdfc(email, phoneNumber);
 
     await orderRef.set({
       items,
@@ -1298,6 +1574,9 @@ app.post("/api/orders", async (req, res) => {
       subtotal,
       totalItems,
       displayId,
+      hdfcOrderId,
+      hdfcCustomerId,
+      paymentProvider: "hdfc_smartgateway",
       customer: {
         fullName,
         address,
@@ -1306,21 +1585,207 @@ app.post("/api/orders", async (req, res) => {
         phoneNumber,
         phone,
       },
-      status: "pending_payment",
+      status: "payment_session_pending",
+      hdfc: {
+        orderId: hdfcOrderId,
+        customerId: hdfcCustomerId,
+      },
       source: "website",
       userAgent: cleanText(req.get("user-agent"), 200),
       createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
+
+    let hdfcSession: Awaited<ReturnType<typeof createHdfcSession>>;
+    try {
+      hdfcSession = await createHdfcSession({
+        hdfcOrderId,
+        amount: subtotal,
+        customerId: hdfcCustomerId,
+        email,
+        phoneNumber,
+        fullName,
+        localOrderId: orderRef.id,
+      });
+    } catch (err) {
+      await orderRef.set({
+        status: "payment_session_failed",
+        hdfc: {
+          orderId: hdfcOrderId,
+          customerId: hdfcCustomerId,
+          sessionError: err instanceof Error ? cleanText(err.message, 240) : "Payment session failed.",
+          sessionFailedAt: FieldValue.serverTimestamp(),
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      throw err;
+    }
+
+    await orderRef.set({
+      hdfcGatewayOrderId: hdfcSession.gatewayOrderId,
+      paymentLink: hdfcSession.paymentLink,
+      paymentLinkExpiry: hdfcSession.expiry,
+      status: "payment_pending",
+      hdfc: {
+        orderId: hdfcOrderId,
+        customerId: hdfcCustomerId,
+        gatewayOrderId: hdfcSession.gatewayOrderId,
+        status: hdfcSession.status,
+        session: hdfcSession.raw,
+        sessionCreatedAt: FieldValue.serverTimestamp(),
+      },
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
 
     return res.status(201).json({
       ok: true,
       orderId: orderRef.id,
       displayId,
+      hdfcOrderId,
+      paymentLink: hdfcSession.paymentLink,
+      paymentLinkExpiry: hdfcSession.expiry,
       subtotal,
       totalItems,
     });
   } catch (err) {
     return handleApiError(err, res, "order create error");
+  }
+});
+
+// ---- POST /api/payments/verify ----
+app.post("/api/payments/verify", async (req, res) => {
+  try {
+    const ip = getClientIp(req);
+
+    if (!rateLimit(`payment-verify:${ip}`, 30)) {
+      return res.status(429).json({ ok: false, message: "Too many requests. Please try again later." });
+    }
+
+    const body = asRecord(req.body);
+    const returnParams = asRecord(body.returnParams);
+    if (!verifyReturnedHdfcSignature(returnParams)) {
+      return res.status(400).json({ ok: false, message: "Invalid payment response signature." });
+    }
+
+    const hdfcOrderId = cleanText(
+      body.orderId || body.hdfcOrderId || returnParams.order_id || returnParams.orderId,
+      80
+    );
+    if (!hdfcOrderId || !/^[a-zA-Z0-9]{1,20}$/.test(hdfcOrderId)) {
+      return res.status(400).json({ ok: false, message: "Payment order ID is required." });
+    }
+
+    const orderRef = db.collection("orders").doc(hdfcOrderId);
+    const orderSnap = await orderRef.get();
+    if (!orderSnap.exists) {
+      return res.status(404).json({ ok: false, message: "Order was not found." });
+    }
+
+    const order = orderSnap.data() || {};
+    const expectedAmount = parseHdfcAmount(order.subtotal);
+    const hdfcCustomerId = cleanText(order.hdfcCustomerId, 80);
+    if (!hdfcCustomerId || expectedAmount === null) {
+      return res.status(400).json({ ok: false, message: "Order cannot be verified." });
+    }
+
+    const hdfcStatus = await fetchHdfcOrderStatus(hdfcOrderId, hdfcCustomerId);
+    const actualAmount = parseHdfcAmount(hdfcStatus.amount);
+
+    if (cleanText(hdfcStatus.order_id, 80) !== hdfcOrderId || actualAmount !== expectedAmount) {
+      await orderRef.set({
+        status: "payment_review_required",
+        hdfc: {
+          rawStatus: hdfcStatus,
+          amountMismatchAt: FieldValue.serverTimestamp(),
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      return res.status(409).json({
+        ok: false,
+        status: "payment_review_required",
+        message: "Payment needs manual review.",
+      });
+    }
+
+    const update = getHdfcStatusUpdate(hdfcStatus);
+    await orderRef.set(update, { merge: true });
+
+    return res.status(200).json({
+      ok: true,
+      orderId: orderRef.id,
+      displayId: cleanText(order.displayId, 20) || getDisplayOrderId(orderRef.id),
+      status: update.status,
+      hdfcStatus: cleanText(hdfcStatus.status, 40),
+      hdfcStatusId: typeof hdfcStatus.status_id === "number" ? hdfcStatus.status_id : null,
+      message: isPaidHdfcStatus(hdfcStatus.status) ?
+        "Payment confirmed." :
+        isPendingHdfcStatus(hdfcStatus.status) ?
+          "Payment is still pending." :
+          "Payment was not completed.",
+    });
+  } catch (err) {
+    return handleApiError(err, res, "payment verify error");
+  }
+});
+
+// ---- POST /api/hdfc/webhook ----
+app.post("/api/hdfc/webhook", async (req, res) => {
+  try {
+    verifyHdfcWebhookAuth(req);
+
+    const body = asRecord(req.body);
+    const content = asRecord(body.content);
+    const hdfcOrder = asRecord(content.order) as HdfcOrderStatus;
+    const hdfcOrderId = cleanText(hdfcOrder.order_id, 80);
+    const eventId = cleanText(body.id, 120) || randomUUID();
+
+    if (!hdfcOrderId || !/^[a-zA-Z0-9]{1,20}$/.test(hdfcOrderId)) {
+      return res.status(200).json({ ok: true });
+    }
+
+    const orderRef = db.collection("orders").doc(hdfcOrderId);
+    const orderSnap = await orderRef.get();
+    if (!orderSnap.exists) {
+      return res.status(200).json({ ok: true });
+    }
+
+    const order = orderSnap.data() || {};
+    const expectedAmount = parseHdfcAmount(order.subtotal);
+    const actualAmount = parseHdfcAmount(hdfcOrder.amount);
+    await orderRef.collection("webhookEvents").doc(eventId).set({
+      eventName: cleanText(body.event_name, 120),
+      hdfcOrderId,
+      payload: body,
+      receivedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    if (expectedAmount !== null && actualAmount !== null && expectedAmount !== actualAmount) {
+      await orderRef.set({
+        status: "payment_review_required",
+        hdfc: {
+          rawWebhook: body,
+          amountMismatchAt: FieldValue.serverTimestamp(),
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      return res.status(200).json({ ok: true });
+    }
+
+    const statusUpdate = getHdfcStatusUpdate(hdfcOrder);
+    await orderRef.set({
+      ...statusUpdate,
+      hdfc: {
+        ...asRecord(statusUpdate.hdfc),
+        rawWebhook: body,
+      },
+    }, { merge: true });
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) {
+      return res.status(401).json({ ok: false, message: err.message });
+    }
+    console.error("hdfc webhook error", err);
+    return res.status(200).json({ ok: true });
   }
 });
 
@@ -1341,91 +1806,91 @@ app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
 export const api = onRequest(
   {
     region: "us-central1",
-    secrets: ["RESEND_API_KEY", "EMAIL_FROM", "STUDIO_EMAIL", "ADMIN_PAGE_PASSWORD"],
+    secrets: [
+      "RESEND_API_KEY",
+      "EMAIL_FROM",
+      "STUDIO_EMAIL",
+      "ADMIN_PAGE_PASSWORD",
+      "HDFC_SMARTGATEWAY_API_KEY",
+      "HDFC_SMARTGATEWAY_MERCHANT_ID",
+      "HDFC_SMARTGATEWAY_PAYMENT_PAGE_CLIENT_ID",
+      "HDFC_SMARTGATEWAY_BASE_URL",
+      "HDFC_SMARTGATEWAY_RESPONSE_KEY",
+      "HDFC_SMARTGATEWAY_WEBHOOK_USERNAME",
+      "HDFC_SMARTGATEWAY_WEBHOOK_PASSWORD",
+    ],
   },
   app
 );
 
-// ---- Firestore trigger: send emails automatically when order is created ----
-export const onOrderCreated = onDocumentCreated(
-  {
-    document: "orders/{orderId}",
-    region: "us-central1",
-    secrets: ["RESEND_API_KEY", "EMAIL_FROM", "STUDIO_EMAIL"],
-  },
-  async (event) => {
-    const rawOrderId = String(event.params.orderId);
-    const data = event.data?.data();
+async function sendPaidOrderEmails(rawOrderId: string, data: Record<string, unknown>) {
+  const orderId = cleanHeaderText(data.displayId, 20) || getDisplayOrderId(rawOrderId);
+  const customer = asRecord(data.customer);
+  const customerEmail = customer.email;
+  const customerName = customer.fullName || "";
+  const rawCustomerAddress = customer.address || "";
+  const customerAddress = getStoredCustomerAddress(rawCustomerAddress);
+  const customerAddressText = formatCustomerAddress(customerAddress, rawCustomerAddress);
+  const customerPhone = customer.phone || "";
 
-    if (!data) return;
+  const items = Array.isArray(data.items) ? data.items : [];
+  const productSubtotal = typeof data.productSubtotal === "number" ?
+    data.productSubtotal :
+    items.reduce((sum: number, rawItem: unknown) => {
+      const item = asRecord(rawItem);
+      return sum + (typeof item.lineTotal === "number" ? item.lineTotal : 0);
+    }, 0);
+  const shippingCost = typeof data.shippingCost === "number" ?
+    data.shippingCost :
+    customerAddress ? calculateShippingCost(customerAddress.city) : null;
+  const subtotal = typeof data.subtotal === "number" ?
+    data.subtotal :
+    shippingCost === null ? productSubtotal : productSubtotal + shippingCost;
+  const productSubtotalText = productSubtotal === null ? "Price not set" : formatCurrency(productSubtotal);
+  const shippingText = shippingCost === null ? "Price not set" : formatCurrency(shippingCost);
+  const subtotalText = subtotal === null ? "Price not set" : formatCurrency(subtotal);
+  const productNames = formatStudioProductNames(items);
+  const invoice = buildInvoicePdf({
+    orderId,
+    customerName: cleanText(customerName, 80),
+    customerAddress,
+    customerAddressText,
+    customerEmail: cleanText(customerEmail, 254),
+    customerPhone: cleanText(customerPhone, 30),
+    items: normalizeInvoiceItems(items),
+    productSubtotal,
+    shippingCost,
+    subtotal,
+    date: getOrderDate(data.createdAt),
+  });
+  const invoiceAttachment = {
+    filename: `atelier2901-invoice-${orderId}.pdf`,
+    content: invoice.toString("base64"),
+    contentType: "application/pdf",
+  };
 
-    const orderId = cleanHeaderText(data.displayId, 20) || getDisplayOrderId(rawOrderId);
-    const customerEmail = data.customer?.email;
-    const customerName = data.customer?.fullName || "";
-    const rawCustomerAddress = data.customer?.address || "";
-    const customerAddress = getStoredCustomerAddress(rawCustomerAddress);
-    const customerAddressText = formatCustomerAddress(customerAddress, rawCustomerAddress);
-    const customerPhone = data.customer?.phone || "";
+  const resend = getResendClient();
+  const EMAIL_FROM = getEnvOrThrow("EMAIL_FROM");
+  const STUDIO_EMAIL = getEnvOrThrow("STUDIO_EMAIL");
 
-    const items = Array.isArray(data.items) ? data.items : [];
-    const productSubtotal = typeof data.productSubtotal === "number" ?
-      data.productSubtotal :
-      items.reduce((sum: number, rawItem: unknown) => {
-        const item = asRecord(rawItem);
-        return sum + (typeof item.lineTotal === "number" ? item.lineTotal : 0);
-      }, 0);
-    const shippingCost = typeof data.shippingCost === "number" ?
-      data.shippingCost :
-      customerAddress ? calculateShippingCost(customerAddress.city) : null;
-    const subtotal = typeof data.subtotal === "number" ?
-      data.subtotal :
-      shippingCost === null ? productSubtotal : productSubtotal + shippingCost;
-    const productSubtotalText = productSubtotal === null ? "Price not set" : formatCurrency(productSubtotal);
-    const shippingText = shippingCost === null ? "Price not set" : formatCurrency(shippingCost);
-    const subtotalText = subtotal === null ? "Price not set" : formatCurrency(subtotal);
-    const productNames = formatStudioProductNames(items);
-    const invoice = buildInvoicePdf({
+  await resend.emails.send({
+    from: EMAIL_FROM,
+    to: STUDIO_EMAIL,
+    subject: `Paid order: ${orderId}`,
+    attachments: [invoiceAttachment],
+    html: formatStudioProductHtml({
+      items,
       orderId,
-      customerName: cleanText(customerName, 80),
-      customerAddress,
-      customerAddressText,
-      customerEmail: cleanText(customerEmail, 254),
-      customerPhone: cleanText(customerPhone, 30),
-      items: normalizeInvoiceItems(items),
-      productSubtotal,
-      shippingCost,
-      subtotal,
-      date: getOrderDate(data.createdAt),
-    });
-    const invoiceAttachment = {
-      filename: `atelier2901-invoice-${orderId}.pdf`,
-      content: invoice.toString("base64"),
-      contentType: "application/pdf",
-    };
-
-    const resend = getResendClient();
-    const EMAIL_FROM = getEnvOrThrow("EMAIL_FROM");
-    const STUDIO_EMAIL = getEnvOrThrow("STUDIO_EMAIL");
-
-    // Studio email always (unless you want to guard)
-    await resend.emails.send({
-      from: EMAIL_FROM,
-      to: STUDIO_EMAIL,
-      subject: `New order: ${orderId}`,
-      attachments: [invoiceAttachment],
-      html: formatStudioProductHtml({
-        items,
-        orderId,
-        customerName,
-        customerEmail,
-        customerPhone,
-        productSubtotalText,
-        shippingText,
-        subtotalText,
-        notes: data.notes,
-      }),
-      text:
-`A new order was placed.
+      customerName,
+      customerEmail,
+      customerPhone,
+      productSubtotalText,
+      shippingText,
+      subtotalText,
+      notes: data.notes,
+    }),
+    text:
+`A paid order was confirmed.
 
 Order ID: ${orderId}
 Customer: ${customerName} <${customerEmail || "no email"}>
@@ -1448,20 +1913,19 @@ The itemized invoice is attached as a PDF.
 Notes:
 ${data.notes || "(none)"}
 `,
-    });
+  });
 
-    // Customer email if available
-    if (customerEmail && isValidEmail(String(customerEmail))) {
-      await resend.emails.send({
-        from: EMAIL_FROM,
-        to: String(customerEmail),
-        subject: "We received your order — ATELIER 2901",
-        attachments: [invoiceAttachment],
-        text:
+  if (customerEmail && isValidEmail(String(customerEmail))) {
+    await resend.emails.send({
+      from: EMAIL_FROM,
+      to: String(customerEmail),
+      subject: "Payment received — ATELIER 2901",
+      attachments: [invoiceAttachment],
+      text:
 `Hi ${customerName || "there"},
 
-We've received your order (ID: ${orderId}).
-Our team will reach out shortly to confirm details.
+We've received your payment for order ${orderId}.
+Our team will reach out shortly to confirm the final details.
 
 Product subtotal:
 ${productSubtotalText}
@@ -1477,7 +1941,28 @@ Your itemized invoice is attached as a PDF.
 Thank you,
 ATELIER 2901
 `,
-      });
-    }
+    });
+  }
+}
+
+// ---- Firestore trigger: send emails automatically when payment is confirmed ----
+export const onOrderPaid = onDocumentUpdated(
+  {
+    document: "orders/{orderId}",
+    region: "us-central1",
+    secrets: ["RESEND_API_KEY", "EMAIL_FROM", "STUDIO_EMAIL"],
+  },
+  async (event) => {
+    const rawOrderId = String(event.params.orderId);
+    const before = event.data?.before.data() || {};
+    const after = event.data?.after.data() || {};
+
+    if (before.status === "paid" || after.status !== "paid" || after.emailSentAt) return;
+
+    await sendPaidOrderEmails(rawOrderId, after);
+    await event.data?.after.ref.set({
+      emailSentAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
   }
 );

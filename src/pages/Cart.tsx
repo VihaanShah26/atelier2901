@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Minus, Plus, X, ArrowLeft, Check } from 'lucide-react';
+import { Minus, Plus, X, ArrowLeft } from 'lucide-react';
 import PageLayout from '@/components/atelier/PageLayout';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
@@ -10,6 +10,9 @@ import { postJSON } from '@/lib/api';
 type CreateOrderResponse = {
   orderId: string;
   displayId: string;
+  hdfcOrderId: string;
+  paymentLink: string;
+  paymentLinkExpiry?: string;
   subtotal: number;
   totalItems: number;
 };
@@ -269,9 +272,8 @@ type CustomerAddress = {
 export default function Cart() {
   const { toast } = useToast();
   const formatRs = (value: number) => `Rs. ${value.toLocaleString('en-IN')}`;
-  const { items, updateQuantity, removeFromCart, clearCart, totalItems, subtotal } = useCart();
+  const { items, updateQuantity, removeFromCart, totalItems, subtotal } = useCart();
   useImagePreloader(items.map((item) => item.img));
-  const [orderPlaced, setOrderPlaced] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerAddress, setCustomerAddress] = useState<CustomerAddress>({
     streetAddress1: '',
@@ -421,10 +423,17 @@ export default function Cart() {
         return;
       }
 
-      toast({ description: `Order ${orderResult.data?.displayId || ''} placed. Confirmation email sent.`.trim() });
-      setOrderNotice({ status: 'idle', message: '' });
-      setOrderPlaced(true);
-      clearCart();
+      if (!orderResult.data?.paymentLink || !orderResult.data?.hdfcOrderId) {
+        setOrderNotice({
+          status: 'error',
+          message: 'Payment link was not created. Please try again.',
+        });
+        return;
+      }
+
+      localStorage.setItem('atelier2901-pending-payment-order', orderResult.data.hdfcOrderId);
+      toast({ description: `Order ${orderResult.data.displayId || ''} created. Redirecting to payment.`.trim() });
+      window.location.assign(orderResult.data.paymentLink);
     } catch {
       setOrderNotice({
         status: 'error',
@@ -432,33 +441,6 @@ export default function Cart() {
       });
     }
   };
-
-  if (orderPlaced) {
-    return (
-      <PageLayout>
-        <section className="max-w-3xl mx-auto px-6 lg:px-12 py-16 lg:py-24 text-center">
-          <div className="animate-fade-in opacity-0">
-            <div className="w-16 h-16 mx-auto mb-8 border border-accent flex items-center justify-center">
-              <Check className="w-8 h-8 text-accent" strokeWidth={1.5} />
-            </div>
-            <h1 className="font-sans text-3xl md:text-4xl mb-4">
-              Thank you
-            </h1>
-            <p className="text-muted-foreground font-light mb-8">
-              We'll reach out to confirm your order details and share the invoice.
-            </p>
-            <Link 
-              to="/"
-              className="inline-flex items-center gap-2 text-sm uppercase tracking-widest font-light text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" strokeWidth={1.5} />
-              Continue browsing
-            </Link>
-          </div>
-        </section>
-      </PageLayout>
-    );
-  }
 
   if (items.length === 0) {
     return (
@@ -775,11 +757,11 @@ export default function Cart() {
             disabled={orderNotice.status === 'loading'}
             className="w-full py-4 bg-foreground text-background text-xs uppercase tracking-widest font-light hover:bg-foreground/90 transition-colors disabled:opacity-50"
           >
-            {orderNotice.status === 'loading' ? 'Placing order...' : 'Checkout'}
+            {orderNotice.status === 'loading' ? 'Opening payment...' : 'Checkout'}
           </button>
           
           <p className="text-center text-xs text-muted-foreground mt-4 font-light">
-            We'll confirm details and pricing via email.
+            You'll be redirected to HDFC SmartGateway to complete payment.
           </p>
         </div>
       </section>
