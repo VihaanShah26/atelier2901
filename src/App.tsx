@@ -15,6 +15,7 @@ import AtelierAbout from "./pages/AtelierAbout";
 import AtelierContact from "./pages/AtelierContact";
 import Cart from "./pages/Cart";
 import PaymentReturn from "./pages/PaymentReturn";
+import LegalPolicy from "./pages/LegalPolicy";
 import NotFound from "./pages/NotFound";
 import ScrollToTop from "./components/ScrollToTop";
 
@@ -42,6 +43,10 @@ function App() {
               <Route path="/about" element={<AtelierAbout />} />
               <Route path="/contact" element={<AtelierContact />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/privacy-policy" element={<LegalPolicy policy="privacy-policy" />} />
+              <Route path="/return-and-refund-policy" element={<LegalPolicy policy="return-and-refund-policy" />} />
+              <Route path="/shipping-and-delivery-policy" element={<LegalPolicy policy="shipping-and-delivery-policy" />} />
+              <Route path="/terms-and-conditions" element={<LegalPolicy policy="terms-and-conditions" />} />
               <Route path="/payments/return" element={<PaymentReturn />} />
               <Route path="/payments/return/*" element={<PaymentReturn />} />
               <Route path="/payment/return" element={<PaymentReturn />} />

@@ -6,6 +6,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { useImagePreloader } from '@/hooks/useImagePreloader';
 import { postJSON } from '@/lib/api';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type CreateOrderResponse = {
   orderId: string;
@@ -286,11 +287,12 @@ export default function Cart() {
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhoneCountryCode, setCustomerPhoneCountryCode] = useState('+91');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [orderNotice, setOrderNotice] = useState<{ status: 'idle' | 'loading' | 'error'; message: string }>({
     status: 'idle',
     message: '',
   });
-  const shippingCost = customerAddress.city.trim().toLowerCase() === 'mumbai' ? 150 : 250;
+  const shippingCost = customerAddress.city.trim().toLowerCase() === 'mumbai' || customerAddress.city.trim().toLowerCase() === '' ? 150 : 250;
   const orderTotal = subtotal + shippingCost;
 
   const handleCustomerNameChange = (value: string) => {
@@ -326,6 +328,13 @@ export default function Cart() {
 
   const handleCustomerPhoneChange = (value: string) => {
     setCustomerPhone(value);
+    if (orderNotice.status === 'error') {
+      setOrderNotice({ status: 'idle', message: '' });
+    }
+  };
+
+  const handleTermsAcceptedChange = (checked: boolean | 'indeterminate') => {
+    setTermsAccepted(checked === true);
     if (orderNotice.status === 'error') {
       setOrderNotice({ status: 'idle', message: '' });
     }
@@ -399,6 +408,10 @@ export default function Cart() {
       setOrderNotice({ status: 'error', message: 'Please enter a valid phone number.' });
       return;
     }
+    if (!termsAccepted) {
+      setOrderNotice({ status: 'error', message: 'Please agree to the Terms & Conditions to continue.' });
+      return;
+    }
 
     setOrderNotice({ status: 'loading', message: '' });
 
@@ -413,6 +426,8 @@ export default function Cart() {
           phoneNumber: trimmedPhone,
           phone: `${customerPhoneCountryCode} ${trimmedPhone}`,
         },
+        termsAccepted: true,
+        termsAcceptedAt: new Date().toISOString(),
       });
 
       if (!orderResult.ok) {
@@ -750,6 +765,23 @@ export default function Cart() {
                 />
               </div>
             </div>
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="terms-and-conditions"
+                checked={termsAccepted}
+                onCheckedChange={handleTermsAcceptedChange}
+                className="mt-0.5"
+              />
+              <label htmlFor="terms-and-conditions" className="text-sm font-light leading-relaxed text-muted-foreground">
+                I agree to the{' '}
+                <Link
+                  to="/terms-and-conditions"
+                  className="text-foreground underline underline-offset-4 hover:text-muted-foreground transition-colors"
+                >
+                  terms and conditions
+                </Link>
+              </label>
+            </div>
           </div>
 
           <button
@@ -757,7 +789,7 @@ export default function Cart() {
             disabled={orderNotice.status === 'loading'}
             className="w-full py-4 bg-foreground text-background text-xs uppercase tracking-widest font-light hover:bg-foreground/90 transition-colors disabled:opacity-50"
           >
-            {orderNotice.status === 'loading' ? 'Opening payment...' : 'Checkout'}
+            {orderNotice.status === 'loading' ? 'Proceeding to payment...' : 'Checkout'}
           </button>
           
           <p className="text-center text-xs text-muted-foreground mt-4 font-light">
